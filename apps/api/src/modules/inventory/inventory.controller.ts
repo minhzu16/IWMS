@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards.js';
@@ -21,7 +22,17 @@ export class InventoryController {
     @Query('warehouseId') warehouseId?: string,
     @Query('productId') productId?: string,
     @Query('lowStock') lowStock?: string,
+    @Query('format') format?: string,
+    @Res({ passthrough: true }) res?: any,
   ) {
+    if (format === 'csv' && res) {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="stock-levels.csv"');
+      return this.inventoryService.exportLevelsCsv(
+        warehouseId ? parseInt(warehouseId, 10) : undefined,
+      );
+    }
+
     return this.inventoryService.getLevels({
       warehouseId: warehouseId ? parseInt(warehouseId, 10) : undefined,
       productId: productId ? parseInt(productId, 10) : undefined,
@@ -38,7 +49,17 @@ export class InventoryController {
     @Query('endDate') endDate?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('format') format?: string,
+    @Res({ passthrough: true }) res?: any,
   ) {
+    if (format === 'csv' && res) {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="stock-movements.csv"');
+      return this.inventoryService.exportMovementsCsv(
+        warehouseId ? parseInt(warehouseId, 10) : undefined,
+      );
+    }
+
     return this.inventoryService.getMovements({
       productId: productId ? parseInt(productId, 10) : undefined,
       warehouseId: warehouseId ? parseInt(warehouseId, 10) : undefined,

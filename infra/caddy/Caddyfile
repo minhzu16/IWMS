@@ -1,0 +1,30 @@
+# Production Caddy Reverse Proxy Configuration with Automatic HTTPS
+{
+    email admin@iwms.local
+}
+
+iwms.local, localhost {
+    # Reverse proxy backend API & Swagger docs
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+    handle /docs* {
+        reverse_proxy api:4000
+    }
+
+    # Serve static SPA web frontend
+    handle {
+        reverse_proxy web:80
+    }
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Enable Gzip / Zstandard compression
+    encode zstd gzip
+}

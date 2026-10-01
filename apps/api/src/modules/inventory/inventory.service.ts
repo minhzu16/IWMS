@@ -209,6 +209,76 @@ export class InventoryService {
     }
   }
 
+  async exportLevelsCsv(warehouseId?: number): Promise<string> {
+    const data = await this.getLevels({ warehouseId });
+    const headers = [
+      'SKU',
+      'Product Name',
+      'Barcode',
+      'UoM',
+      'Warehouse Code',
+      'Warehouse Name',
+      'On Hand',
+      'Reserved',
+      'Available',
+      'Damaged',
+      'Average Cost',
+      'Reorder Point',
+    ];
+
+    const rows = data.map((d) => [
+      `"${d.sku || ''}"`,
+      `"${d.product_name || ''}"`,
+      `"${d.barcode || ''}"`,
+      `"${d.uom || 'pcs'}"`,
+      `"${d.warehouse_code || ''}"`,
+      `"${d.warehouse_name || ''}"`,
+      d.on_hand,
+      d.reserved,
+      d.available,
+      d.damaged,
+      d.avg_cost,
+      d.reorder_point,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async exportMovementsCsv(warehouseId?: number): Promise<string> {
+    const res = await this.getMovements({ warehouseId, limit: 1000 });
+    const headers = [
+      'ID',
+      'Timestamp',
+      'SKU',
+      'Product Name',
+      'Warehouse',
+      'Movement Type',
+      'Delta',
+      'Balance After',
+      'Source Doc Type',
+      'Source Doc ID',
+      'Created By',
+      'Note',
+    ];
+
+    const rows = res.data.map((m) => [
+      m.id,
+      `"${m.created_at}"`,
+      `"${m.sku || ''}"`,
+      `"${m.product_name || ''}"`,
+      `"${m.warehouse_name || ''}"`,
+      `"${m.movement_type}"`,
+      m.qty_on_hand_delta,
+      m.balance_after,
+      `"${m.source_doc_type}"`,
+      m.source_doc_id,
+      `"${m.created_by_name || ''}"`,
+      `"${(m.note || '').replace(/"/g, '""')}"`,
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
   async reconcile() {
     const query = `
       SELECT
