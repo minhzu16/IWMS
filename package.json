@@ -1,0 +1,20 @@
+{
+  "name": "iwms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inventory & Warehouse Management System (IWMS)",
+  "scripts": {
+    "dev": "pnpm --parallel --filter api --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @iwms/db db:generate",
+    "db:migrate": "pnpm --filter @iwms/db db:migrate",
+    "db:seed": "pnpm --filter @iwms/db db:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
