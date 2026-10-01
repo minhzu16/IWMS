@@ -2,12 +2,15 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PoolClient } from 'pg';
 import { MovementLineInput } from '@iwms/shared';
 import { InsufficientStockException } from '../../common/problem-details.filter.js';
+import { Subject } from 'rxjs';
 
 export interface DocReference {
   sourceDocType: string;
   sourceDocId: number;
   sourceLineId?: number;
 }
+
+export const stockMovementEvents$ = new Subject<any>();
 
 @Injectable()
 export class StockPostingService {
@@ -147,6 +150,15 @@ export class StockPostingService {
       );
 
       recordedMovements.push(movRes.rows[0]);
+    }
+
+    // Emit live events for real-time subscribers (SSE)
+    for (const m of recordedMovements) {
+      try {
+        stockMovementEvents$.next(m);
+      } catch (err) {
+        console.error('[SSE Stream] Failed to emit movement event:', err);
+      }
     }
 
     return recordedMovements;

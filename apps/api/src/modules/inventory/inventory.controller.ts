@@ -7,8 +7,13 @@ import {
   UseGuards,
   ParseIntPipe,
   Res,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service.js';
+import { stockMovementEvents$ } from './stock-posting.service.js';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards.js';
 import { Roles, CurrentUser, RequestUser } from '../../common/decorators.js';
 
@@ -108,5 +113,12 @@ export class InventoryController {
   @Roles('ADMIN', 'MANAGER')
   async reconcile() {
     return this.inventoryService.reconcile();
+  }
+
+  @Sse('stream')
+  stream(): Observable<MessageEvent> {
+    return stockMovementEvents$.asObservable().pipe(
+      map((movement) => ({ data: movement } as MessageEvent)),
+    );
   }
 }
