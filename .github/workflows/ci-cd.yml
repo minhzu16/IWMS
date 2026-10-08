@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-and-build:
-    name: Lint, Test & Build
+    name: Lint, Build & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -42,11 +42,11 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Concurrency & State Machine Tests
-        run: pnpm test
-
       - name: Build Monorepo Packages
         run: pnpm build
+
+      - name: Run Concurrency, State Machine & Regression Tests
+        run: pnpm test
 
   docker-build:
     name: Build Docker Images
@@ -68,3 +68,7 @@ jobs:
       - name: Build Web Docker Image
         run: |
           docker build -f infra/docker/web.Dockerfile -t iwms-web:${{ github.sha }} .
+
+      - name: Build Worker Docker Image
+        run: |
+          docker build -f infra/docker/worker.Dockerfile -t iwms-worker:${{ github.sha }} .

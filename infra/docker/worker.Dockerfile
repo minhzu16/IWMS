@@ -4,7 +4,7 @@ RUN npm install -g pnpm@11.15.0
 
 COPY pnpm-lock.yaml package.json pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/worker ./apps/worker
+COPY apps ./apps
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @iwms/shared build
