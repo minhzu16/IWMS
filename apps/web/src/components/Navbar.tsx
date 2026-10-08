@@ -10,7 +10,6 @@ import {
   AlertOctagon,
   History,
   Store,
-  ChevronDown,
 } from 'lucide-react';
 import { UserRole } from '@iwms/shared';
 
@@ -45,20 +44,20 @@ export const Navbar: React.FC<Props> = ({
   ];
 
   const warehouses = [
-    { id: null, name: 'Toàn bộ hệ thống kho' },
+    { id: null, name: 'Tất cả các kho' },
     { id: 1, name: 'Kho Tổng Miền Bắc (Hà Nội)' },
     { id: 2, name: 'Kho Phân Phối Miền Nam (TP.HCM)' },
     { id: 3, name: 'Kho Trung Chuyển Miền Trung' },
   ];
 
   const navItems = [
-    { id: 'dashboard', label: 'Tổng Quan', icon: LayoutDashboard },
-    { id: 'inventory', label: 'Tồn Kho & Sổ Cái', icon: Layers },
-    { id: 'catalog', label: 'Sản Phẩm & NCC', icon: Store },
-    { id: 'purchasing', label: 'Mua Hàng (PO)', icon: ShoppingCart },
-    { id: 'sales', label: 'Bán Hàng & Chuyển Kho', icon: Truck },
-    { id: 'quality', label: 'Hàng Lỗi & Kiểm Kê', icon: AlertOctagon },
-    { id: 'audit', label: 'Kiểm Toán (Audit)', icon: History },
+    { id: 'dashboard', label: 'Tổng quan vận hành', icon: LayoutDashboard },
+    { id: 'inventory', label: 'Tồn kho & Sổ cái', icon: Layers },
+    { id: 'catalog', label: 'Sản phẩm & Đối tác', icon: Store },
+    { id: 'purchasing', label: 'Mua hàng & Nhập kho', icon: ShoppingCart },
+    { id: 'sales', label: 'Bán hàng & Điều chuyển', icon: Truck },
+    { id: 'quality', label: 'Hàng lỗi & Kiểm kê', icon: AlertOctagon },
+    { id: 'audit', label: 'Nhật ký kiểm toán', icon: History },
   ];
 
   return (
@@ -67,66 +66,71 @@ export const Navbar: React.FC<Props> = ({
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        background: 'var(--bg-glass)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        background: 'rgba(8, 12, 20, 0.95)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
-      {/* Top Bar */}
+      {/* Top Console Deck */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '12px 24px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          padding: '10px 24px',
+          borderBottom: '1px solid var(--border-subtle)',
         }}
       >
-        {/* Brand */}
+        {/* Brand & Telemetry Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--deck-panel)',
+              border: '1px solid var(--border-medium)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
-              boxShadow: 'var(--shadow-glow)',
+              color: 'var(--telemetry-cyan)',
             }}
           >
-            <Boxes size={24} />
+            <Boxes size={20} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                IWMS <span style={{ color: '#818cf8', fontWeight: 500, fontSize: 14 }}>Enterprise</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                IWMS <span style={{ color: 'var(--telemetry-cyan)', fontWeight: 600, fontSize: 13 }}>Console</span>
               </span>
-              <span className="badge badge-emerald animate-pulse-glow" style={{ fontSize: 11, padding: '2px 8px' }}>
-                ● Ledger Verified 100%
+              <span
+                className="badge badge-emerald font-mono"
+                style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <span className="beacon-dot" />
+                Sổ cái bất biến: Đồng bộ 100%
               </span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              Inventory & Warehouse Management System · Concurrency & Ledger-First
+              Kiểm soát tồn kho nguyên tử · Chống bán âm · Khử deadlock
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Warehouse Selector */}
           <div style={{ position: 'relative' }}>
             <select
               id="select-active-warehouse"
-              className="select"
+              className="select font-mono"
               style={{
-                width: 230,
-                fontSize: 13,
-                padding: '7px 12px',
-                background: 'var(--bg-tertiary)',
+                width: 220,
+                fontSize: 12,
+                padding: '6px 10px',
+                background: 'var(--deck-panel)',
+                borderColor: 'var(--border-medium)',
               }}
               value={selectedWarehouse || ''}
               onChange={(e) =>
@@ -146,10 +150,10 @@ export const Navbar: React.FC<Props> = ({
             id="btn-nav-barcode"
             className="btn btn-secondary btn-sm"
             onClick={onOpenBarcode}
-            title="Quét mã vạch sản phẩm"
+            title="Tra cứu & tạo mã vạch Code128"
           >
-            <Barcode size={16} />
-            Mã Vạch
+            <Barcode size={15} color="var(--telemetry-cyan)" />
+            Mã vạch Code128
           </button>
 
           {/* Reconcile Button */}
@@ -157,10 +161,10 @@ export const Navbar: React.FC<Props> = ({
             id="btn-nav-reconcile"
             className="btn btn-primary btn-sm"
             onClick={onOpenReconcile}
-            title="Chạy đối soát toán học bất biến"
+            title="Đối soát số dư toán học SUM(movements) == on_hand"
           >
-            <ShieldCheck size={16} />
-            Đối Soát Sổ Cái
+            <ShieldCheck size={15} />
+            Đối soát số dư
           </button>
 
           {/* User Role Switcher */}
@@ -168,25 +172,25 @@ export const Navbar: React.FC<Props> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '4px 10px',
-              borderRadius: 8,
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-subtle)',
+              gap: 6,
+              padding: '3px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--deck-panel)',
+              border: '1px solid var(--border-medium)',
             }}
           >
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vai trò:</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Quyền:</span>
             <select
               id="select-user-role"
-              className="select"
+              className="select font-mono"
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#818cf8',
+                color: 'var(--telemetry-cyan)',
                 fontWeight: 700,
                 fontSize: 12,
                 width: 'auto',
-                padding: '2px 6px',
+                padding: '2px 4px',
                 cursor: 'pointer',
               }}
               value={currentRole}
@@ -202,13 +206,14 @@ export const Navbar: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Segmented Industrial Navigation Tabs */}
       <nav
         style={{
           display: 'flex',
-          gap: 4,
-          padding: '6px 24px',
+          gap: 2,
+          padding: '4px 20px',
           overflowX: 'auto',
+          background: 'var(--deck-black)',
         }}
       >
         {navItems.map((item) => {
@@ -222,21 +227,22 @@ export const Navbar: React.FC<Props> = ({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '8px 16px',
+                gap: 7,
+                padding: '7px 14px',
                 fontSize: 13,
-                fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                background: isActive ? 'var(--accent-primary-light)' : 'transparent',
-                border: 'none',
-                borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
-                borderRadius: '6px 6px 0 0',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                background: isActive ? 'var(--deck-surface)' : 'transparent',
+                border: '1px solid',
+                borderColor: isActive ? 'var(--border-medium)' : 'transparent',
+                borderBottom: isActive ? '2px solid var(--telemetry-cyan)' : '2px solid transparent',
+                borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'background-color 0.12s ease, border-color 0.12s ease',
                 whiteSpace: 'nowrap',
               }}
             >
-              <Icon size={16} color={isActive ? '#818cf8' : 'currentColor'} />
+              <Icon size={15} color={isActive ? 'var(--telemetry-cyan)' : 'var(--text-muted)'} />
               {item.label}
             </button>
           );

@@ -126,116 +126,112 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
   const totalUnits = valuation.reduce((acc, v) => acc + (v.total_on_hand || 0), 0);
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
-      {/* Top Welcome & Quick Refresh */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+    <div style={{ padding: '24px', maxWidth: 1440, margin: '0 auto' }}>
+      {/* Top Header Deck */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Bảng Điều Khiển Tổng Quan (Executive Overview)
+          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            Trung tâm chỉ huy vận hành kho
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-            Theo dõi thời gian thực số dư kho, luồng hàng hóa, độ toàn vẹn sổ cái và cảnh báo tái đặt hàng.
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+            Giám sát thời gian thực số dư khả dụng, luồng chứng từ và tính toàn vẹn sổ cái bất biến.
           </p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={loadDashboardData}>
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          Làm Mới
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={loadDashboardData}
+          disabled={loading}
+          style={{ gap: 6 }}
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          Đồng bộ dữ liệu
         </button>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18, marginBottom: 24 }}>
+      {/* Industrial Stat Cards Deck */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 20 }}>
         {/* Total Valuation */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Tổng Giá Trị Tồn Kho</span>
-            <div style={{ padding: 8, background: 'var(--accent-emerald-light)', borderRadius: 8, color: '#34d399' }}>
-              <DollarSign size={20} />
-            </div>
+        <div className="stat-card stat-emerald">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Tổng giá trị tồn kho</span>
+            <span className="badge badge-emerald font-mono">$ USD</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <div className="font-mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             ${totalValuation.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-            Tổng {totalUnits.toLocaleString()} đơn vị hàng hoá trên 3 kho
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            Quy mô: <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{totalUnits.toLocaleString()}</span> đơn vị hàng hóa trên 3 kho
           </p>
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="card" style={{ borderColor: lowStock.length > 0 ? 'rgba(245, 158, 11, 0.4)' : undefined }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Cảnh Báo Tồn Dưới Ngưỡng</span>
-            <div style={{ padding: 8, background: 'var(--accent-amber-light)', borderRadius: 8, color: '#fbbf24' }}>
-              <AlertTriangle size={20} />
-            </div>
+        <div className="stat-card stat-amber">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Cảnh báo dưới điểm đặt hàng</span>
+            <AlertTriangle size={16} color="var(--safety-amber)" />
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24', letterSpacing: '-0.02em' }}>
+          <div className="font-mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--safety-amber)', letterSpacing: '-0.02em' }}>
             {lowStock.length} SKU
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-            Khả dụng &le; Reorder Point (Cần tạo PO bổ sung)
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            Khả dụng &le; Reorder point (Đề xuất tạo đơn PO)
           </p>
         </div>
 
         {/* In-Transit Transfers */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Hàng Đang Vận Chuyển</span>
-            <div style={{ padding: 8, background: 'var(--accent-cyan-light)', borderRadius: 8, color: '#22d3ee' }}>
-              <Truck size={20} />
-            </div>
+        <div className="stat-card stat-cyan">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Hàng đang điều chuyển</span>
+            <Truck size={16} color="var(--telemetry-cyan)" />
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#38bdf8', letterSpacing: '-0.02em' }}>
-            1 Phiếu
+          <div className="font-mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--telemetry-cyan)', letterSpacing: '-0.02em' }}>
+            1 chứng từ
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-            Điều chuyển 2 bước: Kho Bắc &rarr; Kho Trung Chuyển
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            Kho Tổng Miền Bắc &rarr; Kho Trung Chuyển
           </p>
         </div>
 
         {/* Ledger Integrity Rate */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Độ Toàn Vẹn Sổ Cái</span>
-            <div style={{ padding: 8, background: 'var(--accent-primary-light)', borderRadius: 8, color: '#818cf8' }}>
-              <CheckCircle size={20} />
-            </div>
+        <div className="stat-card stat-emerald">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Độ toàn vẹn sổ cái</span>
+            <CheckCircle size={16} color="var(--invariant-emerald)" />
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#34d399', letterSpacing: '-0.02em' }}>
+          <div className="font-mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--invariant-emerald)', letterSpacing: '-0.02em' }}>
             100.0%
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-            0 sai lệch giữa Ledger và Cache Stock Levels
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            Zero discrepancy giữa Ledger và live balances
           </p>
         </div>
       </div>
 
-      {/* Low Stock Urgent Banner */}
+      {/* Urgent Reorder Banner */}
       {lowStock.length > 0 && (
         <div
           style={{
-            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(17, 24, 39, 0.8) 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            borderRadius: 12,
-            padding: '16px 20px',
-            marginBottom: 24,
+            background: 'var(--deck-panel)',
+            border: '1px solid var(--border-medium)',
+            borderLeft: '4px solid var(--safety-amber)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '14px 18px',
+            marginBottom: 20,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: 14,
+            gap: 12,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.2)', borderRadius: 8, color: '#fbbf24' }}>
-              <AlertTriangle size={24} />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <AlertTriangle size={20} color="var(--safety-amber)" />
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24' }}>
-                Phát hiện {lowStock.length} sản phẩm chạm ngưỡng tồn tối thiểu!
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                Hệ thống tự động tính toán nhu cầu đặt hàng theo công thức: <code>max(reorder_qty, max_stock - available)</code>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Phát hiện {lowStock.length} sản phẩm chạm ngưỡng tồn tối thiểu
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                Đề xuất bổ sung dựa trên định mức: <span className="font-mono">max(reorder_qty, max_stock - available)</span>
               </p>
             </div>
           </div>
@@ -244,28 +240,35 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
             className="btn btn-primary btn-sm"
             onClick={() => onNavigateTab('purchasing')}
           >
-            <ShoppingCart size={15} />
-            Xem Gợi Ý & Tạo Đơn PO
+            <ShoppingCart size={14} />
+            Mở danh sách đề xuất & tạo đơn PO
           </button>
         </div>
       )}
 
-      {/* Two Column Layout: Recent Movements & ABC Analysis */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 24 }}>
-        {/* Recent Ledger Movements */}
+      {/* Main Two-Panel Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 20 }}>
+        {/* Recent Ledger Movements Feed */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>Biến Động Sổ Cái Gần Đây (Append-Only Feed)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Nhật ký sổ cái biến động gần nhất
+              </h2>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Cơ chế Append-Only lưu vết từng giao dịch tức thời
+              </p>
+            </div>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => onNavigateTab('inventory')}
-              style={{ fontSize: 12 }}
+              style={{ fontSize: 11, padding: '4px 8px' }}
             >
-              Xem Toàn Bộ
+              Xem tất cả
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recentMovements.map((m) => {
               const isIn = m.qty_on_hand_delta > 0;
               return (
@@ -275,30 +278,33 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '12px 14px',
-                    borderRadius: 8,
-                    background: 'var(--bg-secondary)',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--deck-panel)',
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div
                       style={{
-                        padding: 8,
-                        borderRadius: 8,
-                        background: isIn ? 'var(--accent-emerald-light)' : 'var(--accent-rose-light)',
-                        color: isIn ? '#34d399' : '#fb7185',
+                        padding: 6,
+                        borderRadius: 'var(--radius-xs)',
+                        background: isIn ? 'var(--invariant-emerald-subtle)' : 'var(--quarantine-crimson-subtle)',
+                        color: isIn ? 'var(--invariant-emerald)' : 'var(--quarantine-crimson)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      {isIn ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                      {isIn ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                     </div>
                     <div>
-                      <h4 style={{ fontSize: 14, fontWeight: 600 }}>{m.product_name}</h4>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
-                        <span className="badge badge-indigo" style={{ fontSize: 10, padding: '2px 6px' }}>
+                      <h4 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.product_name}</h4>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+                        <span className="badge badge-slate font-mono" style={{ fontSize: 10, padding: '1px 5px' }}>
                           {m.movement_type}
                         </span>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           Bởi {m.created_by_name}
                         </span>
                       </div>
@@ -307,16 +313,17 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
 
                   <div style={{ textAlign: 'right' }}>
                     <span
+                      className="font-mono"
                       style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: 700,
-                        color: isIn ? '#34d399' : '#fb7185',
+                        color: isIn ? 'var(--invariant-emerald)' : 'var(--quarantine-crimson)',
                       }}
                     >
                       {isIn ? `+${m.qty_on_hand_delta}` : m.qty_on_hand_delta}
                     </span>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Tồn sau: <span className="font-mono" style={{ color: '#f8fafc' }}>{m.balance_after}</span>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      Tồn sau: <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{m.balance_after}</span>
                     </p>
                   </div>
                 </div>
@@ -327,23 +334,25 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
 
         {/* ABC Analysis Breakdown */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Phân Tích Phân Loại ABC Hàng Hóa</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Nhóm A: 80% giá trị xuất | Nhóm B: 15% | Nhóm C: 5%
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Phân tích định lượng Pareto ABC
+              </h2>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Nhóm A: 80% doanh số xuất · Nhóm B: 15% · Nhóm C: 5%
               </p>
             </div>
-            <span className="badge badge-purple">Pareto 80/20</span>
+            <span className="badge badge-cyan font-mono">Pareto 80/20</span>
           </div>
 
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>SKU</th>
+                  <th>Mã SKU</th>
                   <th>Sản phẩm</th>
-                  <th>Giá trị xuất</th>
+                  <th style={{ textAlign: 'right' }}>Giá trị xuất</th>
                   <th>Phân loại</th>
                 </tr>
               </thead>
@@ -353,15 +362,15 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
                     item.abc_class === 'A'
                       ? 'badge-emerald'
                       : item.abc_class === 'B'
-                      ? 'badge-indigo'
+                      ? 'badge-cyan'
                       : 'badge-amber';
                   return (
                     <tr key={idx}>
-                      <td className="font-mono" style={{ color: '#818cf8', fontWeight: 600 }}>
+                      <td className="font-mono" style={{ color: 'var(--telemetry-cyan)', fontWeight: 600 }}>
                         {item.sku}
                       </td>
-                      <td style={{ fontWeight: 600 }}>{item.product_name}</td>
-                      <td style={{ fontWeight: 700 }}>
+                      <td style={{ fontWeight: 500 }}>{item.product_name}</td>
+                      <td className="font-mono" style={{ fontWeight: 600, textAlign: 'right' }}>
                         ${Number(item.total_shipped_value || 0).toLocaleString()}
                       </td>
                       <td>
@@ -374,28 +383,28 @@ export const DashboardView: React.FC<Props> = ({ onNavigateTab, selectedWarehous
             </table>
           </div>
 
-          {/* Quick Access Action Shortcuts */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 20 }}>
+          {/* Direct Tactical Operation Triggers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => onNavigateTab('purchasing')}
               style={{ justifyContent: 'center' }}
             >
-              + Tạo PO Mua Hàng
+              + Đơn mua PO
             </button>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => onNavigateTab('sales')}
               style={{ justifyContent: 'center' }}
             >
-              + Tạo Đơn Bán SO
+              + Đơn bán SO
             </button>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => onNavigateTab('quality')}
               style={{ justifyContent: 'center' }}
             >
-              + Kiểm Kê Kho
+              + Phiếu kiểm kê
             </button>
           </div>
         </div>
