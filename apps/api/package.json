@@ -6,6 +6,7 @@
     "build": "nest build",
     "start": "nest start",
     "dev": "nest start --watch",
+    "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:concurrency": "vitest run test/concurrency.test.ts"
   },

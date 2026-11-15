@@ -140,6 +140,8 @@ export const stockLevels = pgTable(
     reserved: numeric('reserved', { precision: 14, scale: 3 }).notNull().default('0'),
     damaged: numeric('damaged', { precision: 14, scale: 3 }).notNull().default('0'),
     avgCost: numeric('avg_cost', { precision: 14, scale: 4 }).notNull().default('0'),
+    batchNumber: text('batch_number'),
+    expiryDate: timestamp('expiry_date', { withTimezone: true }),
     version: integer('version').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -171,6 +173,8 @@ export const stockMovements = pgTable(
     sourceDocType: text('source_doc_type').notNull(),
     sourceDocId: bigint('source_doc_id', { mode: 'number' }).notNull(),
     sourceLineId: bigint('source_line_id', { mode: 'number' }),
+    batchNumber: text('batch_number'),
+    expiryDate: timestamp('expiry_date', { withTimezone: true }),
     reversalOf: bigint('reversal_of', { mode: 'number' }),
     note: text('note'),
     createdBy: bigint('created_by', { mode: 'number' })

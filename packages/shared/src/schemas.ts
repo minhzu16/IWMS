@@ -86,6 +86,8 @@ export const MovementLineSchema = z.object({
   qtyOnHandDelta: z.number(),
   qtyDamagedDelta: z.number().default(0),
   unitCost: z.number().optional().nullable(),
+  batchNumber: z.string().max(100).optional().nullable(),
+  expiryDate: z.string().optional().nullable(),
   sourceDocType: z.string(),
   sourceDocId: z.number().int().positive(),
   sourceLineId: z.number().int().positive().optional().nullable(),
@@ -113,6 +115,8 @@ export const GoodsReceiptLineSchema = z.object({
   poLineId: z.number().int().positive(),
   qtyReceived: z.number().nonnegative(),
   qtyDamaged: z.number().nonnegative().default(0),
+  batchNumber: z.string().max(100).optional().nullable(),
+  expiryDate: z.string().optional().nullable(),
 });
 
 export const GoodsReceiptCreateSchema = z.object({

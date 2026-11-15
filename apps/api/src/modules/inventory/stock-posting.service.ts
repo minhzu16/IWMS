@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PoolClient } from 'pg';
-import { MovementLineInput } from '@iwms/shared';
+import { MovementLineInput, validateExpiryGuard } from '@iwms/shared';
 import { InsufficientStockException } from '../../common/problem-details.filter.js';
 import { Subject } from 'rxjs';
 
@@ -71,6 +71,13 @@ export class StockPostingService {
       const nextDamaged = Number((curDamaged + deltaDamaged).toFixed(3));
 
       // 4. Invariant checks
+      if (line.expiryDate) {
+        const expiryGuard = validateExpiryGuard(line.expiryDate, line.movementType);
+        if (!expiryGuard.allowed) {
+          throw new BadRequestException(expiryGuard.reason);
+        }
+      }
+
       if (nextOnHand < 0 || curReserved > nextOnHand) {
         throw new InsufficientStockException({
           productId: line.productId,
@@ -113,9 +120,9 @@ export class StockPostingService {
           product_id, warehouse_id, movement_type,
           qty_on_hand_delta, qty_damaged_delta, unit_cost,
           balance_after, source_doc_type, source_doc_id, source_line_id,
-          note, created_by
+          batch_number, expiry_date, note, created_by
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
           line.productId,
@@ -128,6 +135,8 @@ export class StockPostingService {
           docRef.sourceDocType,
           docRef.sourceDocId,
           line.sourceLineId || docRef.sourceLineId || null,
+          line.batchNumber || null,
+          line.expiryDate ? new Date(line.expiryDate) : null,
           line.note || null,
           userId,
         ],

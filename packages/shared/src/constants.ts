@@ -95,6 +95,40 @@ export const ErrorCodes = {
   NOT_FOUND: 'NOT_FOUND',
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
   INVARIANT_VIOLATION: 'INVARIANT_VIOLATION',
+  EXPIRED_GOODS_GUARD: 'EXPIRED_GOODS_GUARD',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+/**
+ * Expiration Guard & FEFO (First-Expired, First-Out) Validation Engine
+ */
+export function validateExpiryGuard(
+  expiryDate?: string | Date | null,
+  movementType?: string,
+  currentDate: Date = new Date()
+): { allowed: boolean; reason?: string } {
+  if (!expiryDate) return { allowed: true };
+  const exp = new Date(expiryDate);
+  // Block sales reservation, outbound transfer, and shipment if goods are already expired
+  if (
+    exp < currentDate &&
+    (movementType === MovementTypes.SALE_RESERVE ||
+      movementType === MovementTypes.SALE_SHIPMENT ||
+      movementType === MovementTypes.TRANSFER_OUT)
+  ) {
+    return {
+      allowed: false,
+      reason: `EXPIRED_GOODS_GUARD: Lô hàng đã hết hạn sử dụng vào ${exp.toISOString().split('T')[0]}, bị khóa theo chính sách an toàn kho (FEFO).`,
+    };
+  }
+  return { allowed: true };
+}
+
+export function sortBatchesByFEFO<T extends { expiryDate?: string | Date | null }>(batches: T[]): T[] {
+  return [...batches].sort((a, b) => {
+    if (!a.expiryDate) return 1;
+    if (!b.expiryDate) return -1;
+    return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+  });
+}
