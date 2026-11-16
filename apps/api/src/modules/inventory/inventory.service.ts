@@ -209,30 +209,25 @@ export class InventoryService {
     }
   }
 
+  private static escapeCsv(val: any): string {
+    return val === null || val === undefined ? '""' : `"${String(val).replace(/"/g, '""')}"`;
+  }
+
   async exportLevelsCsv(warehouseId?: number): Promise<string> {
     const data = await this.getLevels({ warehouseId });
     const headers = [
-      'SKU',
-      'Product Name',
-      'Barcode',
-      'UoM',
-      'Warehouse Code',
-      'Warehouse Name',
-      'On Hand',
-      'Reserved',
-      'Available',
-      'Damaged',
-      'Average Cost',
-      'Reorder Point',
+      'SKU', 'Product Name', 'Barcode', 'UoM',
+      'Warehouse Code', 'Warehouse Name',
+      'On Hand', 'Reserved', 'Available', 'Damaged', 'Average Cost', 'Reorder Point',
     ];
 
     const rows = data.map((d) => [
-      `"${d.sku || ''}"`,
-      `"${d.product_name || ''}"`,
-      `"${d.barcode || ''}"`,
-      `"${d.uom || 'pcs'}"`,
-      `"${d.warehouse_code || ''}"`,
-      `"${d.warehouse_name || ''}"`,
+      InventoryService.escapeCsv(d.sku),
+      InventoryService.escapeCsv(d.product_name),
+      InventoryService.escapeCsv(d.barcode),
+      InventoryService.escapeCsv(d.uom || 'pcs'),
+      InventoryService.escapeCsv(d.warehouse_code),
+      InventoryService.escapeCsv(d.warehouse_name),
       d.on_hand,
       d.reserved,
       d.available,
@@ -247,33 +242,24 @@ export class InventoryService {
   async exportMovementsCsv(warehouseId?: number): Promise<string> {
     const res = await this.getMovements({ warehouseId, limit: 1000 });
     const headers = [
-      'ID',
-      'Timestamp',
-      'SKU',
-      'Product Name',
-      'Warehouse',
-      'Movement Type',
-      'Delta',
-      'Balance After',
-      'Source Doc Type',
-      'Source Doc ID',
-      'Created By',
-      'Note',
+      'ID', 'Timestamp', 'SKU', 'Product Name', 'Warehouse',
+      'Movement Type', 'Delta', 'Balance After',
+      'Source Doc Type', 'Source Doc ID', 'Created By', 'Note',
     ];
 
     const rows = res.data.map((m) => [
       m.id,
-      `"${m.created_at}"`,
-      `"${m.sku || ''}"`,
-      `"${m.product_name || ''}"`,
-      `"${m.warehouse_name || ''}"`,
-      `"${m.movement_type}"`,
+      InventoryService.escapeCsv(m.created_at),
+      InventoryService.escapeCsv(m.sku),
+      InventoryService.escapeCsv(m.product_name),
+      InventoryService.escapeCsv(m.warehouse_name),
+      InventoryService.escapeCsv(m.movement_type),
       m.qty_on_hand_delta,
       m.balance_after,
-      `"${m.source_doc_type}"`,
+      InventoryService.escapeCsv(m.source_doc_type),
       m.source_doc_id,
-      `"${m.created_by_name || ''}"`,
-      `"${(m.note || '').replace(/"/g, '""')}"`,
+      InventoryService.escapeCsv(m.created_by_name),
+      InventoryService.escapeCsv(m.note),
     ]);
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');

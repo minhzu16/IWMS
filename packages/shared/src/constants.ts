@@ -126,9 +126,12 @@ export function validateExpiryGuard(
 }
 
 export function sortBatchesByFEFO<T extends { expiryDate?: string | Date | null }>(batches: T[]): T[] {
-  return [...batches].sort((a, b) => {
-    if (!a.expiryDate) return 1;
-    if (!b.expiryDate) return -1;
-    return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
-  });
+  if (batches.length <= 1) return [...batches];
+  // O(N) timestamp extraction before sort (Schwartzian transform)
+  const mapped = batches.map((batch) => ({
+    batch,
+    time: batch.expiryDate ? new Date(batch.expiryDate).getTime() : Number.POSITIVE_INFINITY,
+  }));
+  mapped.sort((a, b) => a.time - b.time);
+  return mapped.map((item) => item.batch);
 }

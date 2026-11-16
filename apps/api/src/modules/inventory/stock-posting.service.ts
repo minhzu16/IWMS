@@ -30,13 +30,10 @@ export class StockPostingService {
     lines: MovementLineInput[],
     userId: number,
   ) {
-    if (!lines || lines.length === 0) return [];
+    if (!lines?.length) return [];
 
-    // 1. Sort lines by productId, then warehouseId to eliminate deadlocks
-    const sortedLines = [...lines].sort((a, b) => {
-      if (a.productId !== b.productId) return a.productId - b.productId;
-      return a.warehouseId - b.warehouseId;
-    });
+    // 1. Deterministic sort by (productId ASC, warehouseId ASC) to eliminate deadlocks
+    const sortedLines = [...lines].sort((a, b) => (a.productId !== b.productId ? a.productId - b.productId : a.warehouseId - b.warehouseId));
 
     const recordedMovements = [];
 
@@ -70,12 +67,10 @@ export class StockPostingService {
       const nextOnHand = Number((curOnHand + deltaOnHand).toFixed(3));
       const nextDamaged = Number((curDamaged + deltaDamaged).toFixed(3));
 
-      // 4. Invariant checks
+      // 4. Invariant Guard Clauses
       if (line.expiryDate) {
-        const expiryGuard = validateExpiryGuard(line.expiryDate, line.movementType);
-        if (!expiryGuard.allowed) {
-          throw new BadRequestException(expiryGuard.reason);
-        }
+        const { allowed, reason } = validateExpiryGuard(line.expiryDate, line.movementType);
+        if (!allowed) throw new BadRequestException(reason);
       }
 
       if (nextOnHand < 0 || curReserved > nextOnHand) {
