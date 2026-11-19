@@ -65,10 +65,11 @@ rtk pnpm build
 ```
 
 ### 3.2. Cấu Hình Cơ Sở Dữ Liệu
-Sao chép `.env.example` thành `.env` và cập nhật thông tin kết nối PostgreSQL:
+Sao chép `.env.example` thành `.env`, cập nhật thông tin kết nối PostgreSQL và tạo hai secret riêng biệt (≥ 32 ký tự). API **không khởi động** nếu thiếu:
 ```env
 DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/iwms
-JWT_SECRET=super-secret-jwt-key-iwms-2026-production-grade
+JWT_SECRET=<node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))">
+JWT_REFRESH_SECRET=<chạy lại lệnh trên để có giá trị khác>
 PORT=4000
 CORS_ORIGIN=http://localhost:5173
 ```

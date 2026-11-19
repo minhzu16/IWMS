@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { pool } from '@iwms/db';
 import bcrypt from 'bcrypt';
 import { LoginInput } from '@iwms/shared';
+import { requireSecret } from '../../common/secrets.js';
 
 @Injectable()
 export class AuthService {
@@ -44,13 +45,18 @@ export class AuthService {
       warehouses,
     };
 
-    const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: (process.env.JWT_EXPIRATION || '1h') as any,
-    });
+    const accessToken = await this.jwtService.signAsync(
+      { ...payload, typ: 'access' },
+      { expiresIn: (process.env.JWT_EXPIRATION || '1h') as any },
+    );
 
+    // Separate secret + typ claim: a refresh token can never pass the access-token guard.
     const refreshToken = await this.jwtService.signAsync(
-      { id: user.id },
-      { expiresIn: (process.env.REFRESH_TOKEN_EXPIRATION || '7d') as any },
+      { id: user.id, typ: 'refresh' },
+      {
+        secret: requireSecret('JWT_REFRESH_SECRET'),
+        expiresIn: (process.env.REFRESH_TOKEN_EXPIRATION || '7d') as any,
+      },
     );
 
     return {

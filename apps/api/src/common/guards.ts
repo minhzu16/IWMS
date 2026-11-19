@@ -29,15 +29,18 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Chưa cung cấp token xác thực hoặc phiên đăng nhập đã hết hạn');
     }
 
+    let payload: RequestUser & { typ?: string };
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'super-secret-jwt-key-iwms-2026-production-grade',
-      });
-      request.user = payload as RequestUser;
-      return true;
+      // Verified with the access-token secret configured on JwtModule.
+      payload = await this.jwtService.verifyAsync(token);
     } catch {
       throw new UnauthorizedException('Token xác thực không hợp lệ hoặc đã hết hạn');
     }
+    if (payload.typ !== 'access') {
+      throw new UnauthorizedException('Token xác thực không hợp lệ hoặc đã hết hạn');
+    }
+    request.user = payload;
+    return true;
   }
 }
 

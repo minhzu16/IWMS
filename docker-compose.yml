@@ -39,7 +39,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/iwms
       REDIS_URL: redis://redis:6379
       PORT: 4000
-      JWT_SECRET: super-secret-jwt-key-iwms-2026-production-grade
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET (32+ characters)}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET (32+ characters)}
       CORS_ORIGIN: http://localhost:5173
     ports:
       - '4000:4000'
