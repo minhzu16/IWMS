@@ -8,7 +8,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { AUTH_THROTTLE } from '../../common/throttle.config.js';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { LoginSchema } from '@iwms/shared';
@@ -17,8 +20,9 @@ import { CurrentUser, RequestUser } from '../../common/decorators.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(@Inject(AuthService) private authService: AuthService) {}
 
+  @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {

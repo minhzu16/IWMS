@@ -1,4 +1,5 @@
 import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { pool } from '@iwms/db';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards.js';
@@ -8,6 +9,7 @@ import { Roles } from '../../common/decorators.js';
 export class OpsController {
   constructor(private inventoryService: InventoryService) {}
 
+  @SkipThrottle()
   @Get('health')
   getHealth() {
     return {
@@ -17,6 +19,7 @@ export class OpsController {
     };
   }
 
+  @SkipThrottle()
   @Get('ready')
   async getReadiness() {
     try {

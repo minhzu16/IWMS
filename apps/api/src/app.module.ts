@@ -1,4 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { throttlerOptions } from './common/throttle.config.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { SuppliersModule } from './modules/suppliers/suppliers.module.js';
@@ -16,6 +19,7 @@ import { IdempotencyMiddleware } from './common/idempotency.middleware.js';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot(throttlerOptions(Number(process.env.THROTTLE_LIMIT_PER_MINUTE ?? 600))),
     AuthModule,
     CatalogModule,
     SuppliersModule,
@@ -29,6 +33,12 @@ import { IdempotencyMiddleware } from './common/idempotency.middleware.js';
     ReportsModule,
     AuditModule,
     OpsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {
