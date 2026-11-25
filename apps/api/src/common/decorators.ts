@@ -4,6 +4,9 @@ import { UserRole } from '@iwms/shared';
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
 
+export const ALLOW_QUERY_TOKEN = 'allowQueryToken';
+export const AllowQueryToken = () => SetMetadata(ALLOW_QUERY_TOKEN, true);
+
 export interface RequestUser {
   id: number;
   email: string;

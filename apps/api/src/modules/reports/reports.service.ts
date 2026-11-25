@@ -1,9 +1,57 @@
 import { Injectable } from '@nestjs/common';
 import { pool } from '@iwms/db';
+import { MovementType } from '@iwms/shared';
+
+export interface StockValuationRow {
+  warehouse_id: number;
+  warehouse_name: string;
+  sku_count: string | number;
+  total_on_hand: number;
+  total_reserved: number;
+  total_damaged: number;
+  total_valuation: number;
+  damaged_valuation: number;
+}
+
+export interface LowStockAlertRow {
+  product_id: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  reorder_point: number;
+  reorder_qty: number;
+  max_stock: number;
+  preferred_supplier_id: number | null;
+  preferred_supplier_name: string | null;
+  suggested_po_qty: number;
+}
+
+export interface ABCAnalysisRow {
+  product_id: number;
+  sku: string;
+  product_name: string;
+  total_shipped_value: number;
+  cumulative_value: number;
+  cumulative_pct: number;
+  abc_class: 'A' | 'B' | 'C';
+}
+
+export interface MovementSummaryRow {
+  date: string;
+  movement_type: MovementType;
+  tx_count: string | number;
+  total_in: number;
+  total_out: number;
+}
 
 @Injectable()
 export class ReportsService {
-  async getStockValuation(warehouseId?: number) {
+  async getStockValuation(warehouseId?: number): Promise<StockValuationRow[]> {
     let query = `
       SELECT
         w.id AS warehouse_id,
@@ -18,18 +66,18 @@ export class ReportsService {
       LEFT JOIN stock_levels sl ON sl.warehouse_id = w.id
       WHERE 1=1
     `;
-    const params: any[] = [];
+    const params: unknown[] = [];
     if (warehouseId) {
       params.push(warehouseId);
       query += ` AND w.id = $${params.length}`;
     }
     query += ` GROUP BY w.id, w.name ORDER BY total_valuation DESC`;
 
-    const res = await pool.query(query, params);
+    const res = await pool.query<StockValuationRow>(query, params);
     return res.rows;
   }
 
-  async getLowStockAlerts(warehouseId?: number) {
+  async getLowStockAlerts(warehouseId?: number): Promise<LowStockAlertRow[]> {
     let query = `
       SELECT
         sl.product_id,
@@ -59,18 +107,18 @@ export class ReportsService {
       LEFT JOIN suppliers s ON s.id = pws.preferred_supplier_id
       WHERE (sl.on_hand - sl.reserved) <= COALESCE(pws.reorder_point, 0)
     `;
-    const params: any[] = [];
+    const params: unknown[] = [];
     if (warehouseId) {
       params.push(warehouseId);
       query += ` AND sl.warehouse_id = $${params.length}`;
     }
     query += ` ORDER BY (sl.on_hand - sl.reserved) ASC`;
 
-    const res = await pool.query(query, params);
+    const res = await pool.query<LowStockAlertRow>(query, params);
     return res.rows;
   }
 
-  async getABCAnalysis() {
+  async getABCAnalysis(): Promise<ABCAnalysisRow[]> {
     // Calculates value of goods shipped per SKU to classify A, B, C
     const query = `
       WITH product_usage AS (
@@ -94,7 +142,7 @@ export class ReportsService {
         SELECT
           pu.*,
           SUM(pu.total_shipped_value) OVER (ORDER BY pu.total_shipped_value DESC) AS cumulative_value,
-          (SUM(pu.total_shipped_value) OVER (ORDER BY pu.total_shipped_value DESC) / ts.grand_total * 100)::float AS cumulative_pct
+          COALESCE((SUM(pu.total_shipped_value) OVER (ORDER BY pu.total_shipped_value DESC) / NULLIF(ts.grand_total, 0) * 100), 0)::float AS cumulative_pct
         FROM product_usage pu
         CROSS JOIN total_summary ts
       )
@@ -109,11 +157,11 @@ export class ReportsService {
       ORDER BY r.total_shipped_value DESC;
     `;
 
-    const res = await pool.query(query);
+    const res = await pool.query<ABCAnalysisRow>(query);
     return res.rows;
   }
 
-  async getMovementSummary(days: number = 30) {
+  async getMovementSummary(days: number = 30): Promise<MovementSummaryRow[]> {
     const query = `
       SELECT
         DATE(created_at) AS date,
@@ -126,7 +174,7 @@ export class ReportsService {
       GROUP BY DATE(created_at), movement_type
       ORDER BY DATE(created_at) ASC;
     `;
-    const res = await pool.query(query, [days]);
+    const res = await pool.query<MovementSummaryRow>(query, [days]);
     return res.rows;
   }
 }

@@ -47,7 +47,7 @@ export class CatalogService {
       LEFT JOIN stock_levels sl ON sl.product_id = p.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.search) {
       values.push(`%${params.search}%`);
@@ -114,8 +114,8 @@ export class CatalogService {
         ],
       );
       return res.rows[0];
-    } catch (err: any) {
-      if (err.code === '23505') {
+    } catch (err) {
+      if ((err as { code?: string }).code === '23505') {
         throw new BadRequestException('Mã SKU hoặc Barcode đã tồn tại trên hệ thống');
       }
       throw err;
@@ -123,7 +123,7 @@ export class CatalogService {
   }
 
   async updateProduct(id: number, input: ProductUpdateInput) {
-    const existing = await this.getProductById(id);
+    await this.getProductById(id);
 
     const res = await pool.query(
       `UPDATE products
@@ -153,7 +153,7 @@ export class CatalogService {
   }
 
   async importProducts(items: ProductCreateInput[]) {
-    const created: any[] = [];
+    const created: unknown[] = [];
     const errors: { row: number; sku: string; error: string }[] = [];
 
     for (let i = 0; i < items.length; i++) {
@@ -161,11 +161,11 @@ export class CatalogService {
       try {
         const prod = await this.createProduct(item);
         created.push(prod);
-      } catch (err: any) {
+      } catch (err) {
         errors.push({
           row: i + 1,
           sku: item.sku,
-          error: err.message || 'Lỗi không xác định',
+          error: (err instanceof Error ? err.message : String(err)) || 'Lỗi không xác định',
         });
       }
     }

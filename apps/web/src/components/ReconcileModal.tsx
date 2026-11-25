@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../api/client.js';
+import { api, ReconcileResult } from '../api/client.js';
 import { CheckCircle2, AlertTriangle, ShieldCheck, X, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 
 export const ReconcileModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<ReconcileResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleRunReconcile = async () => {
@@ -36,8 +36,21 @@ export const ReconcileModal: React.FC<Props> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 660 }}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div
+        className="modal-content"
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        style={{ maxWidth: 660 }}
+      >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -63,7 +76,7 @@ export const ReconcileModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onClose} aria-label="Đóng">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} aria-label="Đóng">
             <X size={15} />
           </button>
         </div>
@@ -149,7 +162,7 @@ export const ReconcileModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {result.discrepancies.map((d: any, idx: number) => (
+                      {result.discrepancies.map((d, idx) => (
                         <tr key={idx}>
                           <td>{d.product_name} (<span className="font-mono">{d.sku}</span>)</td>
                           <td>{d.warehouse_name}</td>
@@ -170,10 +183,11 @@ export const ReconcileModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Footer Actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
             Đóng
           </button>
           <button
+            type="button"
             id="btn-run-reconcile"
             className="btn btn-primary btn-sm"
             onClick={handleRunReconcile}

@@ -4,14 +4,71 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { pool } from '@iwms/db';
-import { DamageReportCreateInput, DamageStatuses } from '@iwms/shared';
+import {
+  DamageReportCreateInput,
+  DamageStatuses,
+  DamageStatus,
+  DamageDispositions,
+  DamageDisposition,
+  MovementLineInput,
+  MovementTypes,
+  MovementType,
+} from '@iwms/shared';
 import { StockPostingService } from '../inventory/stock-posting.service.js';
+
+export interface DamageReportSummaryRow {
+  id: number;
+  report_number: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  status: DamageStatus;
+  notes: string | null;
+  created_at: string;
+  created_by_name: string;
+  approved_at: string | null;
+  approved_by_name: string | null;
+  item_count: string | number;
+  total_qty: number;
+}
+
+export interface DamageReportRow {
+  id: number;
+  report_number: string;
+  warehouse_id: number;
+  status: DamageStatus;
+  notes: string | null;
+  created_by: number;
+  created_at: string;
+  approved_by: number | null;
+  approved_at: string | null;
+  warehouse_name: string;
+  created_by_name: string;
+  approved_by_name: string | null;
+}
+
+export interface DamageLineRow {
+  id: number;
+  report_id: number;
+  product_id: number;
+  qty: number;
+  reason: string;
+  disposition: DamageDisposition;
+  supplier_id: number | null;
+  sku: string;
+  product_name: string;
+  uom: string;
+  supplier_name: string | null;
+}
+
+export interface DamageReportDetail extends DamageReportRow {
+  lines: DamageLineRow[];
+}
 
 @Injectable()
 export class DamagesService {
   constructor(private stockPostingService: StockPostingService) {}
 
-  async getReports(warehouseId?: number) {
+  async getReports(warehouseId?: number): Promise<DamageReportSummaryRow[]> {
     let query = `
       SELECT
         dr.id,
@@ -33,19 +90,19 @@ export class DamagesService {
       LEFT JOIN damage_lines dl ON dl.report_id = dr.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
     if (warehouseId) {
       values.push(warehouseId);
       query += ` AND dr.warehouse_id = $${values.length}`;
     }
     query += ` GROUP BY dr.id, w.name, u_cre.full_name, u_app.full_name ORDER BY dr.id DESC`;
 
-    const res = await pool.query(query, values);
+    const res = await pool.query<DamageReportSummaryRow>(query, values);
     return res.rows;
   }
 
-  async getReportById(id: number) {
-    const rRes = await pool.query(
+  async getReportById(id: number): Promise<DamageReportDetail> {
+    const rRes = await pool.query<DamageReportRow>(
       `SELECT dr.*, w.name AS warehouse_name, u_cre.full_name AS created_by_name, u_app.full_name AS approved_by_name
        FROM damage_reports dr
        JOIN warehouses w ON w.id = dr.warehouse_id
@@ -58,7 +115,7 @@ export class DamagesService {
       throw new NotFoundException(`Báo cáo hàng hư hỏng #${id} không tồn tại`);
     }
 
-    const linesRes = await pool.query(
+    const linesRes = await pool.query<DamageLineRow>(
       `SELECT dl.*, p.sku, p.name AS product_name, p.uom, s.name AS supplier_name, dl.qty::float
        FROM damage_lines dl
        JOIN products p ON p.id = dl.product_id
@@ -73,17 +130,17 @@ export class DamagesService {
     };
   }
 
-  async createReport(input: DamageReportCreateInput, userId: number) {
+  async createReport(input: DamageReportCreateInput, userId: number): Promise<DamageReportDetail> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM damage_reports');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM damage_reports');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const reportNumber = `DR-${year}-${seq}`;
 
-      const drRes = await client.query(
+      const drRes = await client.query<{ id: number }>(
         `INSERT INTO damage_reports (report_number, warehouse_id, notes, created_by)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [reportNumber, input.warehouseId, input.notes || null, userId],
@@ -91,7 +148,7 @@ export class DamagesService {
       const dr = drRes.rows[0];
 
       // For reporting newly discovered damaged stock, we move stock from on_hand to damaged
-      const movementsToPost = [];
+      const movementsToPost: MovementLineInput[] = [];
 
       for (const line of input.lines) {
         await client.query(
@@ -111,7 +168,7 @@ export class DamagesService {
         movementsToPost.push({
           productId: line.productId,
           warehouseId: input.warehouseId,
-          movementType: 'DAMAGE',
+          movementType: MovementTypes.DAMAGE,
           qtyOnHandDelta: -line.qty,
           qtyDamagedDelta: line.qty,
           note: `Chuyển kho cách ly hư hỏng: ${line.reason} (${reportNumber})`,
@@ -123,7 +180,7 @@ export class DamagesService {
       await this.stockPostingService.postMovements(
         client,
         { sourceDocType: 'DAMAGE_REPORT', sourceDocId: dr.id },
-        movementsToPost as any,
+        movementsToPost,
         userId,
       );
 
@@ -137,7 +194,7 @@ export class DamagesService {
     }
   }
 
-  async approveReport(id: number, userId: number) {
+  async approveReport(id: number, userId: number): Promise<DamageReportDetail> {
     const report = await this.getReportById(id);
     if (report.status !== DamageStatuses.REPORTED) {
       throw new BadRequestException(`Chỉ có thể duyệt báo cáo hư hỏng ở trạng thái REPORTED`);
@@ -147,11 +204,13 @@ export class DamagesService {
     try {
       await client.query('BEGIN');
 
-      const movementsToPost = [];
+      const movementsToPost: MovementLineInput[] = [];
 
       for (const line of report.lines) {
-        const movementType =
-          line.disposition === 'WRITE_OFF' ? 'DAMAGE_WRITE_OFF' : 'RETURN_TO_SUPPLIER';
+        const movementType: MovementType =
+          line.disposition === DamageDispositions.WRITE_OFF
+            ? MovementTypes.DAMAGE_WRITE_OFF
+            : MovementTypes.RETURN_TO_SUPPLIER;
 
         // Clear from damaged balance
         movementsToPost.push({
@@ -170,7 +229,7 @@ export class DamagesService {
       await this.stockPostingService.postMovements(
         client,
         { sourceDocType: 'DAMAGE_DISPOSITION', sourceDocId: report.id },
-        movementsToPost as any,
+        movementsToPost,
         userId,
       );
 

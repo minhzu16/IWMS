@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   canTransitionPO,
-  canTransitionSO,
-  canTransitionTransfer,
   MovementTypes,
 } from '@iwms/shared';
 
@@ -146,7 +144,7 @@ describe('E2E Warehouse Invariant & Business Workflow Simulation', () => {
 
   it('Step 5: Automated Invariant Reconciler asserts 100% mathematical consistency', () => {
     // For every warehouse, SUM(ledger) must equal onHand exactly
-    for (const [key, level] of stockLevels.entries()) {
+    for (const [_key, level] of stockLevels.entries()) {
       const ledgerSum = stockLedger
         .filter((m) => m.productId === level.productId && m.warehouseId === level.warehouseId)
         .reduce((sum, m) => sum + m.deltaOnHand, 0);

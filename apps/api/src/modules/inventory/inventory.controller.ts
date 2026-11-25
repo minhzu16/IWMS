@@ -5,7 +5,6 @@ import {
   Query,
   Body,
   UseGuards,
-  ParseIntPipe,
   Res,
   Sse,
   MessageEvent,
@@ -15,7 +14,8 @@ import { stockMovementEvents$ } from './stock-posting.service.js';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards.js';
-import { Roles, CurrentUser, RequestUser } from '../../common/decorators.js';
+import { Roles, CurrentUser, RequestUser, AllowQueryToken } from '../../common/decorators.js';
+import { Response } from 'express';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,7 +28,7 @@ export class InventoryController {
     @Query('productId') productId?: string,
     @Query('lowStock') lowStock?: string,
     @Query('format') format?: string,
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res?: Response,
   ) {
     if (format === 'csv' && res) {
       res.setHeader('Content-Type', 'text/csv');
@@ -55,7 +55,7 @@ export class InventoryController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('format') format?: string,
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res?: Response,
   ) {
     if (format === 'csv' && res) {
       res.setHeader('Content-Type', 'text/csv');
@@ -116,6 +116,7 @@ export class InventoryController {
   }
 
   @Sse('stream')
+  @AllowQueryToken()
   stream(): Observable<MessageEvent> {
     return stockMovementEvents$.asObservable().pipe(
       map((movement) => ({ data: movement } as MessageEvent)),

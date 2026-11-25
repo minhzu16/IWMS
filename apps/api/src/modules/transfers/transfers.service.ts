@@ -8,8 +8,37 @@ import {
   TransferCreateInput,
   TransferReceiveInput,
   TransferStatuses,
+  MovementLineInput,
+  MovementTypes,
 } from '@iwms/shared';
 import { StockPostingService } from '../inventory/stock-posting.service.js';
+
+export interface TransferRow {
+  id: number;
+  transfer_number: string;
+  source_warehouse_id: number;
+  source_warehouse_name: string;
+  target_warehouse_id: number;
+  target_warehouse_name: string;
+  status: string;
+  notes: string | null;
+  version: number;
+  created_at: string;
+  created_by?: number;
+  created_by_name: string;
+}
+
+export interface TransferLineRow {
+  id: number;
+  transfer_id: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+  qty_dispatched: number;
+  qty_received: number;
+  qty_damaged: number;
+}
 
 @Injectable()
 export class TransfersService {
@@ -39,7 +68,7 @@ export class TransfersService {
       LEFT JOIN transfer_lines tl ON tl.transfer_id = t.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.status) {
       values.push(params.status);
@@ -57,7 +86,7 @@ export class TransfersService {
   }
 
   async getTransferById(id: number) {
-    const tRes = await pool.query(
+    const tRes = await pool.query<TransferRow>(
       `SELECT
         t.*,
         w_src.name AS source_warehouse_name,
@@ -75,7 +104,7 @@ export class TransfersService {
       throw new NotFoundException(`Phiếu điều chuyển #${id} không tồn tại`);
     }
 
-    const linesRes = await pool.query(
+    const linesRes = await pool.query<TransferLineRow>(
       `SELECT tl.*, p.sku, p.name AS product_name, p.uom, tl.qty_dispatched::float, tl.qty_received::float, tl.qty_damaged::float
        FROM transfer_lines tl
        JOIN products p ON p.id = tl.product_id
@@ -100,11 +129,11 @@ export class TransfersService {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM transfers');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM transfers');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const transferNumber = `TR-${year}-${seq}`;
 
-      const tRes = await client.query(
+      const tRes = await client.query<{ id: number }>(
         `INSERT INTO transfers (transfer_number, source_warehouse_id, target_warehouse_id, notes, created_by)
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
         [transferNumber, input.sourceWarehouseId, input.targetWarehouseId, input.notes || null, userId],
@@ -139,10 +168,10 @@ export class TransfersService {
     try {
       await client.query('BEGIN');
 
-      const movementsToPost = transfer.lines.map((l: any) => ({
+      const movementsToPost: MovementLineInput[] = transfer.lines.map((l: TransferLineRow) => ({
         productId: l.product_id,
         warehouseId: transfer.source_warehouse_id,
-        movementType: 'TRANSFER_OUT',
+        movementType: MovementTypes.TRANSFER_OUT,
         qtyOnHandDelta: -l.qty_dispatched,
         qtyDamagedDelta: 0,
         note: `Xuất điều chuyển tới ${transfer.target_warehouse_name} (${transfer.transfer_number})`,
@@ -183,10 +212,10 @@ export class TransfersService {
     try {
       await client.query('BEGIN');
 
-      const movementsToPost: any[] = [];
+      const movementsToPost: MovementLineInput[] = [];
 
       for (const item of input.lines) {
-        const line = transfer.lines.find((l: any) => l.id === item.lineId);
+        const line = transfer.lines.find((l: TransferLineRow) => l.id === item.lineId);
         if (!line) {
           throw new BadRequestException(`Dòng điều chuyển #${item.lineId} không tồn tại`);
         }
@@ -209,7 +238,7 @@ export class TransfersService {
           movementsToPost.push({
             productId: line.product_id,
             warehouseId: transfer.target_warehouse_id,
-            movementType: 'TRANSFER_IN',
+            movementType: MovementTypes.TRANSFER_IN,
             qtyOnHandDelta: item.qtyReceived,
             qtyDamagedDelta: 0,
             note: `Nhập điều chuyển từ ${transfer.source_warehouse_name} (${transfer.transfer_number})`,
@@ -223,7 +252,7 @@ export class TransfersService {
           movementsToPost.push({
             productId: line.product_id,
             warehouseId: transfer.target_warehouse_id,
-            movementType: 'DAMAGE',
+            movementType: MovementTypes.DAMAGE,
             qtyOnHandDelta: 0,
             qtyDamagedDelta: item.qtyDamaged,
             note: `Hàng hư hỏng phát sinh trong quá trình vận chuyển (${transfer.transfer_number})`,

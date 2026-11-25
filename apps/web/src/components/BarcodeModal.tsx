@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '../api/client.js';
-import { Barcode, Search, X, Package, Printer } from 'lucide-react';
+import { api, Product } from '../api/client.js';
+import { Barcode, Search, X, Printer } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface Props {
 export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [barcodeInput, setBarcodeInput] = useState('893850123004');
   const [loading, setLoading] = useState(false);
-  const [product, setProduct] = useState<any | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sampleBarcodes = [
@@ -55,8 +55,21 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div
+        className="modal-content"
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        style={{ maxWidth: 620 }}
+      >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -82,7 +95,7 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onClose} aria-label="Đóng">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} aria-label="Đóng">
             <X size={15} />
           </button>
         </div>
@@ -95,13 +108,14 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
               type="text"
               className="input font-mono"
               placeholder="Quét mã vạch hoặc nhập mã SKU..."
+              aria-label="Mã vạch hoặc SKU"
               value={barcodeInput}
               onChange={(e) => setBarcodeInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
-              autoFocus
             />
           </div>
           <button
+            type="button"
             id="btn-scan-lookup"
             className="btn btn-primary"
             onClick={() => handleLookup()}
@@ -120,6 +134,7 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {sampleBarcodes.map((s) => (
               <button
+                type="button"
                 key={s.code}
                 className="btn btn-secondary btn-sm font-mono"
                 style={{ fontSize: 11, padding: '3px 8px' }}
@@ -181,7 +196,7 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Industrial Barcode Raster Simulation */}
             <div
               style={{
-                background: '#ffffff',
+                background: 'var(--glass-bg-strong)',
                 padding: '12px 18px',
                 borderRadius: 'var(--radius-xs)',
                 marginTop: 14,
@@ -196,11 +211,11 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     y="0"
                     width={i % 3 === 0 ? 3 : i % 2 === 0 ? 2 : 1}
                     height="32"
-                    fill="#0a0e17"
+                    fill="var(--glass-bg-strong)"
                   />
                 ))}
               </svg>
-              <div className="font-mono" style={{ fontSize: 12, color: '#0a0e17', fontWeight: 700, marginTop: 2 }}>
+              <div className="font-mono" style={{ fontSize: 12, color: 'var(--glass-bg-strong)', fontWeight: 700, marginTop: 2 }}>
                 *{product.barcode || product.sku}*
               </div>
             </div>
@@ -228,6 +243,7 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
+            type="button"
             className="btn btn-secondary btn-sm"
             onClick={() => window.print()}
             disabled={!product}
@@ -235,7 +251,7 @@ export const BarcodeModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <Printer size={14} />
             In tem nhãn Code128
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
             Đóng
           </button>
         </div>

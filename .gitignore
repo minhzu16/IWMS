@@ -8,3 +8,10 @@ build/
 .DS_Store
 coverage/
 .drizzle/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Local agent tooling
+.agents/

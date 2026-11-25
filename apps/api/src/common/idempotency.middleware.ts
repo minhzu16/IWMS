@@ -2,6 +2,20 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '@iwms/db';
 import crypto from 'crypto';
+import { RequestUser } from './decorators.js';
+
+export interface IdempotencyRow {
+  response_status: number | null;
+  response_body: unknown;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: RequestUser;
+    }
+  }
+}
 
 @Injectable()
 export class IdempotencyMiddleware implements NestMiddleware {
@@ -11,14 +25,14 @@ export class IdempotencyMiddleware implements NestMiddleware {
       return next();
     }
 
-    const userId = (req as any).user?.id || 1;
+    const userId = req.user?.id || 1;
     const requestHash = crypto
       .createHash('sha256')
       .update(`${req.method}:${req.originalUrl}:${JSON.stringify(req.body || {})}`)
       .digest('hex');
 
     try {
-      const existing = await pool.query(
+      const existing = await pool.query<IdempotencyRow>(
         'SELECT response_status, response_body FROM idempotency_keys WHERE key = $1',
         [key],
       );
@@ -38,7 +52,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
 
       // Intercept response body
       const originalJson = res.json.bind(res);
-      res.json = (body: any) => {
+      res.json = (body?: unknown) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           pool
             .query(

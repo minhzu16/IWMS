@@ -1,6 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { pool } from '@iwms/db';
 
+export interface AuditLogRow {
+  id: number;
+  user_id: number | null;
+  user_name: string | null;
+  user_role: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: number;
+  before: unknown;
+  after: unknown;
+  ip: string | null;
+  request_id: string | null;
+  created_at: string | Date;
+}
+
 @Injectable()
 export class AuditService {
   async getAuditLogs(params: {
@@ -15,7 +30,7 @@ export class AuditService {
     const offset = (page - 1) * limit;
 
     let where = 'WHERE 1=1';
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.entityType) {
       values.push(params.entityType);
@@ -30,13 +45,13 @@ export class AuditService {
       where += ` AND al.user_id = $${values.length}`;
     }
 
-    const countRes = await pool.query(
+    const countRes = await pool.query<{ count: string }>(
       `SELECT COUNT(*) FROM audit_logs al ${where}`,
       values,
     );
     const total = parseInt(countRes.rows[0].count, 10);
 
-    const dataRes = await pool.query(
+    const dataRes = await pool.query<AuditLogRow>(
       `SELECT
         al.id,
         al.user_id,

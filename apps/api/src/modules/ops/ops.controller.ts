@@ -1,5 +1,6 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Post, Res, UseGuards } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Response } from 'express';
 import { pool } from '@iwms/db';
 import { InventoryService } from '../inventory/inventory.service.js';
 import { JwtAuthGuard, RolesGuard } from '../../common/guards.js';
@@ -21,7 +22,7 @@ export class OpsController {
 
   @SkipThrottle()
   @Get('ready')
-  async getReadiness() {
+  async getReadiness(@Res({ passthrough: true }) res?: Response) {
     try {
       await pool.query('SELECT 1');
       return {
@@ -29,12 +30,11 @@ export class OpsController {
         database: 'CONNECTED',
         timestamp: new Date().toISOString(),
       };
-    } catch (err: any) {
-      return {
-        status: 'NOT_READY',
-        database: 'DISCONNECTED',
-        error: err.message,
-      };
+    } catch {
+      if (res) {
+        res.status(HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      return { status: 'not_ready' };
     }
   }
 

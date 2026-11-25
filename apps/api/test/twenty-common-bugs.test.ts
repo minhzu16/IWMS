@@ -2,13 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   canTransitionPO,
   canTransitionSO,
-  canTransitionTransfer,
-  canTransitionDamage,
-  canTransitionCount,
   MovementTypes,
   POStatuses,
-  SOStatuses,
-  TransferStatuses,
   UserRoles,
 } from '@iwms/shared';
 
@@ -56,7 +51,7 @@ describe('20 Common IWMS Bugs - Prevention & Invariant Verification Suite', () =
   // --- BUG 1: RACE CONDITION OVERSELL ---
   describe('Bug 1: Race Condition & Concurrent Overselling', () => {
     it('prevents overselling when multiple concurrent requests attempt to reserve limited stock', async () => {
-      let onHand = 15;
+      const onHand = 15;
       let reserved = 0;
       const requestedPerOrder = 1;
       let successOrders = 0;
@@ -179,7 +174,7 @@ describe('20 Common IWMS Bugs - Prevention & Invariant Verification Suite', () =
       const idempotencyStore = new Map<string, { status: number; body: any }>();
       let actualMovementsPosted = 0;
 
-      const processRequestWithIdempotency = (key: string, payload: any) => {
+      const processRequestWithIdempotency = (key: string, _payload: unknown) => {
         if (idempotencyStore.has(key)) {
           return { cached: true, response: idempotencyStore.get(key) };
         }
@@ -259,12 +254,6 @@ describe('20 Common IWMS Bugs - Prevention & Invariant Verification Suite', () =
   // --- BUG 8: LEDGER IMMUTABILITY TAMPERING ---
   describe('Bug 8: Ledger Immutability Violation (Tampering)', () => {
     it('rejects updates or deletions on immutable stock_movements ledger', () => {
-      const ledgerPolicy = {
-        canUpdate: false,
-        canDelete: false,
-        canInsert: true,
-      };
-
       const executeLedgerOperation = (operation: 'INSERT' | 'UPDATE' | 'DELETE') => {
         if (operation === 'UPDATE' || operation === 'DELETE') {
           throw new Error('CRITICAL: stock_movements is an immutable ledger! Updates and Deletions are forbidden.');
@@ -402,7 +391,7 @@ describe('20 Common IWMS Bugs - Prevention & Invariant Verification Suite', () =
   // --- BUG 14: OPTIMISTIC LOCKING MID-AIR COLLISION ---
   describe('Bug 14: Optimistic Concurrency Lost Update (Version Collision)', () => {
     it('detects stale version in concurrent updates and throws VersionConflictException (HTTP 409)', () => {
-      let document = { id: 1, name: 'Original SKU Name', version: 3 };
+      const document = { id: 1, name: 'Original SKU Name', version: 3 };
 
       const updateDocument = (id: number, newName: string, expectedVersion: number) => {
         if (document.version !== expectedVersion) {
@@ -500,7 +489,6 @@ describe('20 Common IWMS Bugs - Prevention & Invariant Verification Suite', () =
       ];
 
       const evaluatePOStatus = (linesList: typeof lines) => {
-        const totalOrdered = linesList.reduce((sum, l) => sum + l.qtyOrdered, 0);
         const totalReceived = linesList.reduce((sum, l) => sum + l.qtyReceived, 0);
 
         if (totalReceived === 0) return POStatuses.APPROVED;

@@ -66,4 +66,38 @@ describe('Auth rate limiting', () => {
     });
     expect(blocked.status).toBe(429);
   });
+
+  it('11 consecutive refresh calls without cookie return 401 and are not rate-limited', async () => {
+    for (let i = 0; i < 11; i++) {
+      const res = await fetch(`${base}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it('a successful login response JSON has no refreshToken key and the set-cookie header contains refreshToken= with HttpOnly', async () => {
+    const testApp = await NestFactory.create(TestModule, { logger: false });
+    await testApp.listen(0);
+    const addr = testApp.getHttpServer().address() as { port: number };
+    const testBase = `http://127.0.0.1:${addr.port}`;
+    try {
+      const res = await fetch(`${testBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'user@example.com', password: 'secret123' }),
+      });
+      expect(res.status).toBe(200);
+      const data = (await res.json()) as Record<string, unknown>;
+      expect(data).not.toHaveProperty('refreshToken');
+      expect(data.refreshToken).toBeUndefined();
+      expect(data.accessToken).toBe('a');
+      const cookie = res.headers.get('set-cookie');
+      expect(cookie).toContain('refreshToken=');
+      expect(cookie).toMatch(/HttpOnly/i);
+    } finally {
+      await testApp.close();
+    }
+  });
 });

@@ -15,7 +15,10 @@ import { CountsModule } from './modules/counts/counts.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { OpsModule } from './modules/ops/ops.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
+import { MetricsModule } from './modules/metrics/metrics.module.js';
 import { IdempotencyMiddleware } from './common/idempotency.middleware.js';
+import { DbShutdownService } from './db-shutdown.service.js';
 
 @Module({
   imports: [
@@ -33,12 +36,15 @@ import { IdempotencyMiddleware } from './common/idempotency.middleware.js';
     ReportsModule,
     AuditModule,
     OpsModule,
+    AdminModule,
+    MetricsModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    DbShutdownService,
   ],
 })
 export class AppModule implements NestModule {

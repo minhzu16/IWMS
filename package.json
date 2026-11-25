@@ -10,6 +10,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "test:coverage": "pnpm --filter api test:coverage",
     "db:generate": "pnpm --filter @iwms/db db:generate",
     "db:migrate": "pnpm --filter @iwms/db db:migrate",
     "db:seed": "pnpm --filter @iwms/db db:seed"

@@ -4,14 +4,67 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { pool } from '@iwms/db';
-import { StockCountCreateInput, CountStatuses } from '@iwms/shared';
+import {
+  StockCountCreateInput,
+  CountStatuses,
+  CountStatus,
+  MovementLineInput,
+  MovementTypes,
+  MovementType,
+} from '@iwms/shared';
 import { StockPostingService } from '../inventory/stock-posting.service.js';
+
+export interface StockCountSummaryRow {
+  id: number;
+  count_number: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  status: CountStatus;
+  notes: string | null;
+  created_at: string;
+  created_by_name: string;
+  approved_at: string | null;
+  approved_by_name: string | null;
+  item_count: string | number;
+  total_variance: number;
+}
+
+export interface StockCountRow {
+  id: number;
+  count_number: string;
+  warehouse_id: number;
+  status: CountStatus;
+  notes: string | null;
+  created_by: number;
+  created_at: string;
+  approved_by: number | null;
+  approved_at: string | null;
+  warehouse_name: string;
+  created_by_name: string;
+  approved_by_name: string | null;
+}
+
+export interface StockCountLineRow {
+  id: number;
+  count_id: number;
+  product_id: number;
+  system_qty: number;
+  counted_qty: number;
+  variance: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+}
+
+export interface StockCountDetail extends StockCountRow {
+  lines: StockCountLineRow[];
+}
 
 @Injectable()
 export class CountsService {
   constructor(private stockPostingService: StockPostingService) {}
 
-  async getCounts(warehouseId?: number) {
+  async getCounts(warehouseId?: number): Promise<StockCountSummaryRow[]> {
     let query = `
       SELECT
         sc.id,
@@ -33,19 +86,19 @@ export class CountsService {
       LEFT JOIN stock_count_lines scl ON scl.count_id = sc.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
     if (warehouseId) {
       values.push(warehouseId);
       query += ` AND sc.warehouse_id = $${values.length}`;
     }
     query += ` GROUP BY sc.id, w.name, u_cre.full_name, u_app.full_name ORDER BY sc.id DESC`;
 
-    const res = await pool.query(query, values);
+    const res = await pool.query<StockCountSummaryRow>(query, values);
     return res.rows;
   }
 
-  async getCountById(id: number) {
-    const cRes = await pool.query(
+  async getCountById(id: number): Promise<StockCountDetail> {
+    const cRes = await pool.query<StockCountRow>(
       `SELECT sc.*, w.name AS warehouse_name, u_cre.full_name AS created_by_name, u_app.full_name AS approved_by_name
        FROM stock_counts sc
        JOIN warehouses w ON w.id = sc.warehouse_id
@@ -58,7 +111,7 @@ export class CountsService {
       throw new NotFoundException(`Phiếu kiểm kê #${id} không tồn tại`);
     }
 
-    const linesRes = await pool.query(
+    const linesRes = await pool.query<StockCountLineRow>(
       `SELECT scl.*, p.sku, p.name AS product_name, p.uom, scl.system_qty::float, scl.counted_qty::float, scl.variance::float
        FROM stock_count_lines scl
        JOIN products p ON p.id = scl.product_id
@@ -73,17 +126,17 @@ export class CountsService {
     };
   }
 
-  async createCount(input: StockCountCreateInput, userId: number) {
+  async createCount(input: StockCountCreateInput, userId: number): Promise<StockCountDetail> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM stock_counts');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM stock_counts');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const countNumber = `SC-${year}-${seq}`;
 
-      const scRes = await client.query(
+      const scRes = await client.query<{ id: number }>(
         `INSERT INTO stock_counts (count_number, warehouse_id, notes, created_by)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [countNumber, input.warehouseId, input.notes || null, userId],
@@ -92,7 +145,7 @@ export class CountsService {
 
       for (const line of input.lines) {
         // Fetch current system on_hand
-        const lvlRes = await client.query(
+        const lvlRes = await client.query<{ on_hand: string | number }>(
           `SELECT on_hand FROM stock_levels WHERE product_id = $1 AND warehouse_id = $2`,
           [line.productId, input.warehouseId],
         );
@@ -116,7 +169,7 @@ export class CountsService {
     }
   }
 
-  async approveCount(id: number, userId: number) {
+  async approveCount(id: number, userId: number): Promise<StockCountDetail> {
     const count = await this.getCountById(id);
     if (count.status !== CountStatuses.DRAFT) {
       throw new BadRequestException(`Chỉ có thể duyệt phiếu kiểm kê ở trạng thái DRAFT`);
@@ -126,12 +179,13 @@ export class CountsService {
     try {
       await client.query('BEGIN');
 
-      const movementsToPost = [];
+      const movementsToPost: MovementLineInput[] = [];
 
       for (const line of count.lines) {
         if (line.variance === 0) continue;
 
-        const movementType = line.variance > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+        const movementType: MovementType =
+          line.variance > 0 ? MovementTypes.ADJUSTMENT_IN : MovementTypes.ADJUSTMENT_OUT;
 
         movementsToPost.push({
           productId: line.product_id,
@@ -150,7 +204,7 @@ export class CountsService {
         await this.stockPostingService.postMovements(
           client,
           { sourceDocType: 'STOCK_COUNT', sourceDocId: count.id },
-          movementsToPost as any,
+          movementsToPost,
           userId,
         );
       }

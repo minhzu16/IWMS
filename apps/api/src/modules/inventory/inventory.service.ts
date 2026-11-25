@@ -1,6 +1,67 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { pool } from '@iwms/db';
+import { MovementLineInput, MovementType, MovementTypes } from '@iwms/shared';
 import { StockPostingService } from './stock-posting.service.js';
+
+export interface StockLevelRow {
+  product_id: number;
+  sku: string;
+  product_name: string;
+  barcode: string | null;
+  uom: string;
+  warehouse_id: number;
+  warehouse_code: string;
+  warehouse_name: string;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  damaged: number;
+  avg_cost: number;
+  reorder_point: number;
+  reorder_qty: number;
+  updated_at: string;
+}
+
+export interface StockMovementRow {
+  id: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  movement_type: string;
+  qty_on_hand_delta: number;
+  qty_damaged_delta: number;
+  unit_cost: number;
+  balance_after: number;
+  source_doc_type: string;
+  source_doc_id: number;
+  note: string | null;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface AsOfStockRow {
+  product_id: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  on_hand_as_of: number;
+  damaged_as_of: number;
+}
+
+export interface ReconcileRow {
+  product_id: number;
+  sku: string;
+  product_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  on_hand: number;
+  ledger_sum: number;
+  discrepancy: number;
+}
 
 @Injectable()
 export class InventoryService {
@@ -32,7 +93,7 @@ export class InventoryService {
         ON pws.product_id = sl.product_id AND pws.warehouse_id = sl.warehouse_id
       WHERE 1=1
     `;
-    const params: any[] = [];
+    const params: unknown[] = [];
 
     if (filters.warehouseId) {
       params.push(filters.warehouseId);
@@ -50,7 +111,7 @@ export class InventoryService {
 
     query += ` ORDER BY p.name ASC, w.code ASC`;
 
-    const res = await pool.query(query, params);
+    const res = await pool.query<StockLevelRow>(query, params);
     return res.rows;
   }
 
@@ -68,7 +129,7 @@ export class InventoryService {
     const offset = (page - 1) * limit;
 
     let whereClause = `WHERE 1=1`;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.productId) {
       values.push(params.productId);
@@ -91,13 +152,13 @@ export class InventoryService {
       whereClause += ` AND sm.created_at <= $${values.length}`;
     }
 
-    const countRes = await pool.query(
+    const countRes = await pool.query<{ count: string }>(
       `SELECT COUNT(*) FROM stock_movements sm ${whereClause}`,
       values,
     );
     const total = parseInt(countRes.rows[0].count, 10);
 
-    const dataRes = await pool.query(
+    const dataRes = await pool.query<StockMovementRow>(
       `SELECT
         sm.id,
         sm.product_id,
@@ -155,7 +216,7 @@ export class InventoryService {
         AND sm.created_at <= $1::timestamptz
       WHERE 1=1
     `;
-    const params: any[] = [asOfDate];
+    const params: unknown[] = [asOfDate];
 
     if (warehouseId) {
       params.push(warehouseId);
@@ -164,7 +225,7 @@ export class InventoryService {
 
     query += ` GROUP BY p.id, p.sku, p.name, p.uom, w.id, w.name ORDER BY p.name ASC, w.id ASC`;
 
-    const res = await pool.query(query, params);
+    const res = await pool.query<AsOfStockRow>(query, params);
     return res.rows;
   }
 
@@ -183,19 +244,23 @@ export class InventoryService {
     try {
       await client.query('BEGIN');
 
-      const movementType = delta > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+      const movementType: MovementType = delta > 0 ? MovementTypes.ADJUSTMENT_IN : MovementTypes.ADJUSTMENT_OUT;
+      const sourceDocId = Date.now();
+      const line: MovementLineInput = {
+        productId,
+        warehouseId,
+        movementType,
+        qtyOnHandDelta: delta,
+        qtyDamagedDelta: 0,
+        sourceDocType: 'MANUAL_ADJUSTMENT',
+        sourceDocId,
+        note: reason,
+      };
+
       await this.stockPostingService.postMovements(
         client,
-        { sourceDocType: 'MANUAL_ADJUSTMENT', sourceDocId: Date.now() },
-        [
-          {
-            productId,
-            warehouseId,
-            movementType,
-            qtyOnHandDelta: delta,
-            note: reason,
-          } as any,
-        ],
+        { sourceDocType: 'MANUAL_ADJUSTMENT', sourceDocId },
+        [line],
         userId,
       );
 
@@ -209,7 +274,7 @@ export class InventoryService {
     }
   }
 
-  private static escapeCsv(val: any): string {
+  private static escapeCsv(val: unknown): string {
     return val === null || val === undefined ? '""' : `"${String(val).replace(/"/g, '""')}"`;
   }
 
@@ -284,7 +349,7 @@ export class InventoryService {
       HAVING s.on_hand <> COALESCE(SUM(m.qty_on_hand_delta), 0);
     `;
 
-    const res = await pool.query(query);
+    const res = await pool.query<ReconcileRow>(query);
     const discrepancies = res.rows;
     return {
       isConsistent: discrepancies.length === 0,

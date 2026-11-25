@@ -1,3 +1,6 @@
+> ⚠️ **Tài liệu do AI tạo, chưa được đo hay kiểm chứng.** Các số liệu, điểm số và benchmark dưới đây không có test
+> hay phép đo nào chứng minh. Đánh giá hiện hành: `../scorecard_and_upgrade_plan.md` (thư mục gốc self_project).
+
 # Bản Đánh Giá Kỹ Thuật & Đo Lường Chuẩn Hóa (Argon Benchmark)
 ## Dự án: IWMS - Inventory & Warehouse Management System (pj2)
 **Hội đồng Đánh giá:** Ban Kiến trúc sư Cấp cao & Kỹ sư Trưởng Hệ thống  

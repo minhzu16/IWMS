@@ -10,12 +10,57 @@ import {
   canTransitionPO,
   UserRole,
   POStatuses,
+  POStatus,
+  MovementLineInput,
+  MovementTypes,
 } from '@iwms/shared';
 import { StockPostingService } from '../inventory/stock-posting.service.js';
 import {
   InvalidStateTransitionException,
   VersionConflictException,
 } from '../../common/problem-details.filter.js';
+
+export interface PurchaseOrderRow {
+  id: number;
+  po_number: string;
+  supplier_id: number;
+  supplier_name: string;
+  supplier_code?: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  warehouse_code?: string;
+  // The DB CHECK constraint limits this column to the POStatuses values.
+  status: POStatus;
+  expected_date: string | null;
+  approved_by: number | null;
+  approved_by_name: string | null;
+  approved_at: string | null;
+  version: number;
+  created_at: string;
+  created_by?: number;
+  created_by_name: string;
+}
+
+export interface POLineRow {
+  id: number;
+  po_id: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+  qty_ordered: number;
+  qty_received: number;
+  unit_price: number;
+}
+
+export interface GoodsReceiptRow {
+  id: number;
+  gr_number: string;
+  po_id: number;
+  received_by: number;
+  received_by_name: string;
+  created_at: string;
+}
 
 @Injectable()
 export class PurchasingService {
@@ -49,7 +94,7 @@ export class PurchasingService {
       LEFT JOIN purchase_order_lines pol ON pol.po_id = po.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.status) {
       values.push(params.status);
@@ -71,7 +116,7 @@ export class PurchasingService {
   }
 
   async getPOById(id: number) {
-    const poRes = await pool.query(
+    const poRes = await pool.query<PurchaseOrderRow>(
       `SELECT
         po.*,
         s.name AS supplier_name,
@@ -93,7 +138,7 @@ export class PurchasingService {
       throw new NotFoundException(`Đơn mua hàng PO #${id} không tồn tại`);
     }
 
-    const linesRes = await pool.query(
+    const linesRes = await pool.query<POLineRow>(
       `SELECT pol.*, p.sku, p.name AS product_name, p.uom, pol.unit_price::float, pol.qty_ordered::float, pol.qty_received::float
        FROM purchase_order_lines pol
        JOIN products p ON p.id = pol.product_id
@@ -102,7 +147,7 @@ export class PurchasingService {
       [id],
     );
 
-    const receiptsRes = await pool.query(
+    const receiptsRes = await pool.query<GoodsReceiptRow>(
       `SELECT gr.*, u.full_name AS received_by_name
        FROM goods_receipts gr
        JOIN users u ON u.id = gr.received_by
@@ -124,11 +169,11 @@ export class PurchasingService {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM purchase_orders');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM purchase_orders');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const poNumber = `PO-${year}-${seq}`;
 
-      const poRes = await client.query(
+      const poRes = await client.query<{ id: number }>(
         `INSERT INTO purchase_orders (po_number, supplier_id, warehouse_id, expected_date, created_by)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
@@ -167,14 +212,14 @@ export class PurchasingService {
     }
 
     let extraSet = '';
-    const params: any[] = [check.nextStatus, id];
+    const params: unknown[] = [check.nextStatus, id];
 
     if (action === 'APPROVE') {
       extraSet = ', approved_by = $3, approved_at = now()';
       params.push(userId);
     }
 
-    const res = await pool.query(
+    await pool.query(
       `UPDATE purchase_orders
        SET status = $1, version = version + 1 ${extraSet}
        WHERE id = $2
@@ -216,21 +261,21 @@ export class PurchasingService {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM goods_receipts');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM goods_receipts');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const grNumber = `GR-${year}-${seq}`;
 
-      const grRes = await client.query(
+      const grRes = await client.query<{ id: number }>(
         `INSERT INTO goods_receipts (gr_number, po_id, received_by)
          VALUES ($1, $2, $3) RETURNING *`,
         [grNumber, poId, userId],
       );
       const gr = grRes.rows[0];
 
-      const movementLinesToPost: any[] = [];
+      const movementLinesToPost: MovementLineInput[] = [];
 
       for (const line of input.lines) {
-        const poLine = po.lines.find((l: any) => l.id === line.poLineId);
+        const poLine = po.lines.find((l: POLineRow) => l.id === line.poLineId);
         if (!poLine) {
           throw new BadRequestException(`Dòng đơn hàng #${line.poLineId} không thuộc PO #${poId}`);
         }
@@ -266,7 +311,7 @@ export class PurchasingService {
           movementLinesToPost.push({
             productId: poLine.product_id,
             warehouseId: po.warehouse_id,
-            movementType: 'PURCHASE_RECEIPT',
+            movementType: MovementTypes.PURCHASE_RECEIPT,
             qtyOnHandDelta: line.qtyReceived,
             qtyDamagedDelta: 0,
             unitCost: poLine.unit_price,
@@ -282,7 +327,7 @@ export class PurchasingService {
           movementLinesToPost.push({
             productId: poLine.product_id,
             warehouseId: po.warehouse_id,
-            movementType: 'DAMAGE',
+            movementType: MovementTypes.DAMAGE,
             qtyOnHandDelta: 0,
             qtyDamagedDelta: line.qtyDamaged,
             unitCost: poLine.unit_price,
@@ -303,7 +348,7 @@ export class PurchasingService {
       );
 
       // Check if all lines are fully received
-      const updatedLinesRes = await client.query(
+      const updatedLinesRes = await client.query<{ qty_ordered: number | string; qty_received: number | string }>(
         `SELECT qty_ordered, qty_received FROM purchase_order_lines WHERE po_id = $1`,
         [poId],
       );

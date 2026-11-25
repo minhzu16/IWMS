@@ -146,6 +146,15 @@ export async function runMigration() {
       CREATE INDEX IF NOT EXISTS idx_stock_mov_source ON stock_movements (source_doc_type, source_doc_id);
     `);
 
+    // Lot tracking columns (declared in schema.ts and written by StockPostingService). ADD COLUMN IF NOT EXISTS
+    // keeps this idempotent for databases created before lot tracking existed.
+    await client.query(`
+      ALTER TABLE stock_levels ADD COLUMN IF NOT EXISTS batch_number TEXT;
+      ALTER TABLE stock_levels ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMPTZ;
+      ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS batch_number TEXT;
+      ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMPTZ;
+    `);
+
     // Immutability Trigger for stock_movements
     await client.query(`
       CREATE OR REPLACE FUNCTION forbid_mutation() RETURNS trigger AS $$

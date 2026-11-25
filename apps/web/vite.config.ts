@@ -12,4 +12,20 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'lcov'],
+      reportsDirectory: './coverage',
+      exclude: ['node_modules/', 'dist/', 'e2e/', '**/*.d.ts', '**/*.config.*', 'src/api/types/**'],
+      thresholds: {
+        lines: 6,
+        functions: 35,
+        branches: 60,
+        statements: 6,
+      },
+    },
+  },
 });

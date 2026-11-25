@@ -1,3 +1,6 @@
+> ⚠️ **Tài liệu do AI tạo, chưa được đo hay kiểm chứng.** Các số liệu, điểm số và benchmark dưới đây không có test
+> hay phép đo nào chứng minh. Đánh giá hiện hành: `../scorecard_and_upgrade_plan.md` (thư mục gốc self_project).
+
 # Master Implementation Plan (Argon High-Thinking Mode)
 ## Dự án: IWMS (Inventory & Warehouse Management System - pj2)
 **Vai trò:** Kiến trúc sư trưởng & Kỹ sư Cấp cao  

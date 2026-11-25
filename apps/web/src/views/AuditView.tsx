@@ -1,62 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../api/client.js';
-import { History, Search, Shield, Eye, X } from 'lucide-react';
+import { api, AuditLog } from '../api/client.js';
+import { Eye, X } from 'lucide-react';
+
+const FALLBACK_AUDIT_LOGS: AuditLog[] = [
+  {
+    id: 1,
+    action: 'POST_PURCHASE_RECEIPT',
+    entity_type: 'STOCK_LEVEL',
+    entity_id: 4,
+    user_name: 'Phạm Thủ Kho',
+    user_role: 'WAREHOUSE',
+    before: { onHand: 40, reserved: 0, damaged: 0 },
+    after: { onHand: 80, reserved: 0, damaged: 0 },
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    action: 'PO_APPROVE',
+    entity_type: 'PURCHASE_ORDER',
+    entity_id: 1,
+    user_name: 'Trần Trưởng Phòng',
+    user_role: 'MANAGER',
+    before: { status: 'SUBMITTED', version: 0 },
+    after: { status: 'APPROVED', version: 1 },
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 3,
+    action: 'SO_CONFIRMED',
+    entity_type: 'SALES_ORDER',
+    entity_id: 1,
+    user_name: 'Hoàng Kinh Doanh',
+    user_role: 'SALES',
+    before: { status: 'DRAFT' },
+    after: { status: 'CONFIRMED' },
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+  },
+];
 
 export const AuditView: React.FC = () => {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [selectedLog, setSelectedLog] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [_loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAuditLogs();
-  }, []);
-
-  const loadAuditLogs = async () => {
+  const _loadAuditLogs = async () => {
     setLoading(true);
     try {
       const res = await api.getAuditLogs({ limit: 40 });
       setLogs(res.data);
     } catch {
-      // Fallback sample data
-      setLogs([
-        {
-          id: 1,
-          action: 'POST_PURCHASE_RECEIPT',
-          entity_type: 'STOCK_LEVEL',
-          entity_id: 4,
-          user_name: 'Phạm Thủ Kho',
-          user_role: 'WAREHOUSE',
-          before: { onHand: 40, reserved: 0, damaged: 0 },
-          after: { onHand: 80, reserved: 0, damaged: 0 },
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          action: 'PO_APPROVE',
-          entity_type: 'PURCHASE_ORDER',
-          entity_id: 1,
-          user_name: 'Trần Trưởng Phòng',
-          user_role: 'MANAGER',
-          before: { status: 'SUBMITTED', version: 0 },
-          after: { status: 'APPROVED', version: 1 },
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: 3,
-          action: 'SO_CONFIRMED',
-          entity_type: 'SALES_ORDER',
-          entity_id: 1,
-          user_name: 'Hoàng Kinh Doanh',
-          user_role: 'SALES',
-          before: { status: 'DRAFT' },
-          after: { status: 'CONFIRMED' },
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-        },
-      ]);
+      setLogs(FALLBACK_AUDIT_LOGS);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let ignore = false;
+    api.getAuditLogs({ limit: 40 })
+      .then((res) => {
+        if (!ignore) setLogs(res.data);
+      })
+      .catch(() => {
+        if (!ignore) setLogs(FALLBACK_AUDIT_LOGS);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
@@ -99,9 +113,10 @@ export const AuditView: React.FC = () => {
                   </span>
                 </td>
                 <td>{log.entity_type}</td>
-                <td className="font-mono" style={{ color: '#818cf8', fontWeight: 600 }}>#{log.entity_id}</td>
+                <td className="font-mono" style={{ color: 'var(--transit-indigo)', fontWeight: 600 }}>#{log.entity_id}</td>
                 <td style={{ textAlign: 'right' }}>
                   <button
+                    type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={() => setSelectedLog(log)}
                   >
@@ -117,8 +132,21 @@ export const AuditView: React.FC = () => {
 
       {/* Diff Inspector Modal */}
       {selectedLog && (
-        <div className="modal-overlay" onClick={() => setSelectedLog(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750 }}>
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={() => setSelectedLog(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setSelectedLog(null);
+          }}
+        >
+          <div
+            className="modal-content"
+            role="presentation"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            style={{ maxWidth: 750 }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
                 <h3 style={{ fontSize: 18, fontWeight: 700 }}>Chi Tiết Kiểm Toán #{selectedLog.id}</h3>
@@ -126,7 +154,12 @@ export const AuditView: React.FC = () => {
                   Hành động: <strong>{selectedLog.action}</strong> bởi <strong>{selectedLog.user_name}</strong>
                 </p>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setSelectedLog(null)}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedLog(null)}
+                aria-label="Đóng"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -143,7 +176,7 @@ export const AuditView: React.FC = () => {
                     fontSize: 12,
                     fontFamily: 'monospace',
                     border: '1px solid rgba(244, 63, 94, 0.3)',
-                    color: '#fb7185',
+                    color: 'var(--quarantine-crimson)',
                     overflowX: 'auto',
                     minHeight: 180,
                   }}
@@ -163,7 +196,7 @@ export const AuditView: React.FC = () => {
                     fontSize: 12,
                     fontFamily: 'monospace',
                     border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#34d399',
+                    color: 'var(--invariant-emerald)',
                     overflowX: 'auto',
                     minHeight: 180,
                   }}
@@ -174,7 +207,13 @@ export const AuditView: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedLog(null)}>Đóng</button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setSelectedLog(null)}
+              >
+                Đóng
+              </button>
             </div>
           </div>
         </div>

@@ -7,10 +7,12 @@ import { PurchasingView } from './views/PurchasingView.js';
 import { SalesTransfersView } from './views/SalesTransfersView.js';
 import { QualityCountsView } from './views/QualityCountsView.js';
 import { AuditView } from './views/AuditView.js';
+import { AdminView } from './views/AdminView.js';
 import { ReconcileModal } from './components/ReconcileModal.js';
 import { BarcodeModal } from './components/BarcodeModal.js';
 import { UserRole } from '@iwms/shared';
-import { Zap, X, ShieldCheck } from 'lucide-react';
+import { Zap, X } from 'lucide-react';
+import { getAuthToken } from './api/client.js';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -32,14 +34,18 @@ export const App: React.FC = () => {
   useEffect(() => {
     let eventSource: EventSource | null = null;
     try {
-      eventSource = new EventSource('/api/v1/inventory/stream');
+      const token = getAuthToken();
+      const streamUrl = token
+        ? `/api/v1/inventory/stream?token=${encodeURIComponent(token)}`
+        : '/api/v1/inventory/stream';
+      eventSource = new EventSource(streamUrl);
       eventSource.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const data = JSON.parse(event.data) as Record<string, unknown>;
           const delta = Number(data.qty_on_hand_delta || 0);
           const isIn = delta > 0;
           setLiveToast({
-            movementType: data.movement_type || 'POST_MOVEMENT',
+            movementType: String(data.movement_type || 'POST_MOVEMENT'),
             delta,
             balanceAfter: Number(data.balance_after || 0),
             isIn,
@@ -103,6 +109,7 @@ export const App: React.FC = () => {
           />
         )}
         {activeTab === 'audit' && <AuditView />}
+        {activeTab === 'admin' && <AdminView />}
       </main>
 
       {/* Reconcile Verification Modal */}
@@ -181,6 +188,7 @@ export const App: React.FC = () => {
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setLiveToast(null)}
             style={{
               background: 'transparent',

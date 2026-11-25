@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { canTransitionPO, canTransitionSO, canTransitionTransfer } from '@iwms/shared';
 
 describe('State Machine Transitions', () => {
@@ -45,7 +45,7 @@ describe('State Machine Transitions', () => {
 describe('Concurrent Stock Arithmetic & Invariants', () => {
   it('Simulates 50 concurrent withdrawals with conditional atomicity', async () => {
     let onHand = 10;
-    let reserved = 0;
+    const reserved = 0;
     const requested = 1;
     let successCount = 0;
     let failCount = 0;

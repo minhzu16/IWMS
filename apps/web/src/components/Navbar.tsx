@@ -58,6 +58,7 @@ export const Navbar: React.FC<Props> = ({
     { id: 'sales', label: 'Bán hàng & Điều chuyển', icon: Truck },
     { id: 'quality', label: 'Hàng lỗi & Kiểm kê', icon: AlertOctagon },
     { id: 'audit', label: 'Nhật ký kiểm toán', icon: History },
+    { id: 'admin', label: 'Quản trị', icon: ShieldCheck },
   ];
 
   return (
@@ -66,24 +67,27 @@ export const Navbar: React.FC<Props> = ({
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        background: 'rgba(8, 12, 20, 0.95)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        borderBottom: '1px solid var(--border-subtle)',
+        background: 'var(--glass-bg-strong)',
+        backdropFilter: 'blur(var(--glass-blur)) saturate(170%)',
+        WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(170%)',
+        borderBottom: '1px solid var(--glass-border)',
+        boxShadow: 'var(--glass-shadow)',
       }}
     >
       {/* Top Console Deck */}
       <div
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '10px 24px',
+          padding: '10px clamp(12px, 4vw, 24px)',
           borderBottom: '1px solid var(--border-subtle)',
         }}
       >
         {/* Brand & Telemetry Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
           <div
             style={{
               width: 36,
@@ -100,7 +104,7 @@ export const Navbar: React.FC<Props> = ({
             <Boxes size={20} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                 IWMS <span style={{ color: 'var(--telemetry-cyan)', fontWeight: 600, fontSize: 13 }}>Console</span>
               </span>
@@ -119,14 +123,15 @@ export const Navbar: React.FC<Props> = ({
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           {/* Warehouse Selector */}
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', maxWidth: '100%' }}>
             <select
               id="select-active-warehouse"
               className="select font-mono"
               style={{
                 width: 220,
+                maxWidth: '100%',
                 fontSize: 12,
                 padding: '6px 10px',
                 background: 'var(--deck-panel)',

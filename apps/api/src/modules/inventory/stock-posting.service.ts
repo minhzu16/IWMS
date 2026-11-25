@@ -10,7 +10,34 @@ export interface DocReference {
   sourceLineId?: number;
 }
 
-export const stockMovementEvents$ = new Subject<any>();
+export interface StockLevelLockRow {
+  on_hand: string | number;
+  reserved: string | number;
+  damaged: string | number;
+  avg_cost: string | number;
+  version: number;
+}
+
+export interface StockMovementEvent {
+  id?: number;
+  product_id?: number;
+  warehouse_id?: number;
+  movement_type?: string;
+  qty_on_hand_delta?: number;
+  qty_damaged_delta?: number;
+  unit_cost?: number;
+  balance_after?: number;
+  source_doc_type?: string;
+  source_doc_id?: number;
+  source_line_id?: number | null;
+  batch_number?: string | null;
+  expiry_date?: Date | null;
+  note?: string | null;
+  created_by?: number;
+  [key: string]: unknown;
+}
+
+export const stockMovementEvents$ = new Subject<StockMovementEvent>();
 
 @Injectable()
 export class StockPostingService {
@@ -35,7 +62,7 @@ export class StockPostingService {
     // 1. Deterministic sort by (productId ASC, warehouseId ASC) to eliminate deadlocks
     const sortedLines = [...lines].sort((a, b) => (a.productId !== b.productId ? a.productId - b.productId : a.warehouseId - b.warehouseId));
 
-    const recordedMovements = [];
+    const recordedMovements: StockMovementEvent[] = [];
 
     for (const line of sortedLines) {
       // 2. Ensure stock_levels row exists (upsert 0 balance)
@@ -47,7 +74,7 @@ export class StockPostingService {
       );
 
       // 3. Acquire pessimistic lock on the target stock level
-      const lockRes = await client.query(
+      const lockRes = await client.query<StockLevelLockRow>(
         `SELECT on_hand, reserved, damaged, avg_cost, version
          FROM stock_levels
          WHERE product_id = $1 AND warehouse_id = $2
@@ -110,7 +137,7 @@ export class StockPostingService {
       );
 
       // 7. Append-only ledger recording
-      const movRes = await client.query(
+      const movRes = await client.query<StockMovementEvent>(
         `INSERT INTO stock_movements (
           product_id, warehouse_id, movement_type,
           qty_on_hand_delta, qty_damaged_delta, unit_cost,
@@ -134,22 +161,6 @@ export class StockPostingService {
           line.expiryDate ? new Date(line.expiryDate) : null,
           line.note || null,
           userId,
-        ],
-      );
-
-      // 8. Audit log recording
-      await client.query(
-        `INSERT INTO audit_logs (
-          user_id, action, entity_type, entity_id, before, after
-         )
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          userId,
-          `POST_${line.movementType}`,
-          'STOCK_LEVEL',
-          line.productId,
-          JSON.stringify({ onHand: curOnHand, reserved: curReserved, damaged: curDamaged }),
-          JSON.stringify({ onHand: nextOnHand, reserved: curReserved, damaged: nextDamaged }),
         ],
       );
 

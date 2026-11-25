@@ -8,6 +8,11 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
 
+# Security floors for transitive deps flagged by `pnpm audit` (nest platform-express).
+overrides:
+  multer: '>=2.5.0'
+  body-parser@>=2 <2.4.0: '>=2.4.0'
+
 onlyBuiltDependencies:
   - bcrypt
   - esbuild

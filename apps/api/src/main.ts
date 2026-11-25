@@ -1,18 +1,22 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { ConsoleLogger } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { ProblemDetailsFilter } from './common/problem-details.filter.js';
+import { requestId } from './common/request-id.middleware.js';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { pool } from '@iwms/db';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: process.env.NODE_ENV === 'production' ? new ConsoleLogger({ json: true }) : undefined,
+  });
 
   // Resilient process lifecycle (NestJS shutdown hooks + connection draining)
   app.enableShutdownHooks();
 
+  app.use(requestId);
   app.use(helmet());
   app.setGlobalPrefix('api/v1');
 
@@ -40,22 +44,6 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`[IWMS Backend] Server is running on: http://localhost:${port}/api/v1`);
   console.log(`[IWMS Backend] Swagger API docs: http://localhost:${port}/docs`);
-
-  const gracefulShutdown = async (signal: string) => {
-    console.log(`[IWMS Backend] Received ${signal}. Draining connections and shutting down cleanly...`);
-    try {
-      await app.close();
-      await pool.end();
-      console.log('[IWMS Backend] HTTP server closed and PostgreSQL pool drained cleanly.');
-      process.exit(0);
-    } catch (err) {
-      console.error('[IWMS Backend] Error during graceful shutdown:', err);
-      process.exit(1);
-    }
-  };
-
-  process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.once('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 bootstrap().catch((err) => {

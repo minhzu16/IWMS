@@ -4,9 +4,34 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { pool } from '@iwms/db';
-import { SOCreateInput, SOStatuses } from '@iwms/shared';
+import { SOCreateInput, SOStatuses, MovementLineInput, MovementTypes } from '@iwms/shared';
 import { StockPostingService } from '../inventory/stock-posting.service.js';
 import { InsufficientStockException } from '../../common/problem-details.filter.js';
+
+export interface SalesOrderRow {
+  id: number;
+  so_number: string;
+  customer_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  status: string;
+  version: number;
+  created_at: string;
+  created_by?: number;
+  created_by_name: string;
+}
+
+export interface SOLineRow {
+  id: number;
+  so_id: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  uom: string;
+  qty_ordered: number;
+  qty_shipped: number;
+  unit_price: number;
+}
 
 @Injectable()
 export class SalesService {
@@ -32,7 +57,7 @@ export class SalesService {
       LEFT JOIN sales_order_lines sol ON sol.so_id = so.id
       WHERE 1=1
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (params.status) {
       values.push(params.status);
@@ -50,7 +75,7 @@ export class SalesService {
   }
 
   async getSOById(id: number) {
-    const soRes = await pool.query(
+    const soRes = await pool.query<SalesOrderRow>(
       `SELECT so.*, w.name AS warehouse_name, u.full_name AS created_by_name
        FROM sales_orders so
        JOIN warehouses w ON w.id = so.warehouse_id
@@ -63,7 +88,7 @@ export class SalesService {
       throw new NotFoundException(`Đơn bán hàng SO #${id} không tồn tại`);
     }
 
-    const linesRes = await pool.query(
+    const linesRes = await pool.query<SOLineRow>(
       `SELECT sol.*, p.sku, p.name AS product_name, p.uom, sol.unit_price::float, sol.qty_ordered::float, sol.qty_shipped::float
        FROM sales_order_lines sol
        JOIN products p ON p.id = sol.product_id
@@ -84,11 +109,11 @@ export class SalesService {
       await client.query('BEGIN');
 
       const year = new Date().getFullYear();
-      const countRes = await client.query('SELECT COUNT(*) FROM sales_orders');
+      const countRes = await client.query<{ count: string }>('SELECT COUNT(*) FROM sales_orders');
       const seq = String(parseInt(countRes.rows[0].count, 10) + 1).padStart(6, '0');
       const soNumber = `SO-${year}-${seq}`;
 
-      const soRes = await client.query(
+      const soRes = await client.query<{ id: number }>(
         `INSERT INTO sales_orders (so_number, customer_name, warehouse_id, created_by)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [soNumber, input.customerName, input.warehouseId, userId],
@@ -124,7 +149,7 @@ export class SalesService {
       await client.query('BEGIN');
 
       // Sort lines to prevent deadlocks
-      const sortedLines = [...so.lines].sort((a: any, b: any) => a.product_id - b.product_id);
+      const sortedLines = [...so.lines].sort((a: SOLineRow, b: SOLineRow) => a.product_id - b.product_id);
 
       for (const line of sortedLines) {
         // Atomic conditional reserve update
@@ -141,7 +166,7 @@ export class SalesService {
 
         if (updateRes.rows.length === 0) {
           // Check current stock for detailed error
-          const currRes = await client.query(
+          const currRes = await client.query<{ on_hand: string | number; reserved: string | number }>(
             `SELECT on_hand, reserved FROM stock_levels WHERE product_id = $1 AND warehouse_id = $2`,
             [line.product_id, so.warehouse_id],
           );
@@ -188,7 +213,7 @@ export class SalesService {
     try {
       await client.query('BEGIN');
 
-      const linesToPost: any[] = [];
+      const linesToPost: MovementLineInput[] = [];
 
       for (const line of so.lines) {
         // Release the reservation first
@@ -209,7 +234,7 @@ export class SalesService {
         linesToPost.push({
           productId: line.product_id,
           warehouseId: so.warehouse_id,
-          movementType: 'SALE_SHIPMENT',
+          movementType: MovementTypes.SALE_SHIPMENT,
           qtyOnHandDelta: -line.qty_ordered,
           qtyDamagedDelta: 0,
           note: `Xuất bán theo đơn hàng ${so.so_number}`,
@@ -241,7 +266,7 @@ export class SalesService {
     }
   }
 
-  async cancelSO(id: number, userId: number) {
+  async cancelSO(id: number, _userId: number) {
     const so = await this.getSOById(id);
     if (so.status === SOStatuses.SHIPPED || so.status === SOStatuses.CANCELLED) {
       throw new BadRequestException(`Không thể hủy đơn hàng đã xuất hoặc đã hủy`);

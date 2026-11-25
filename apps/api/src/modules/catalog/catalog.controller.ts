@@ -16,6 +16,7 @@ import {
   ProductCreateSchema,
   ProductUpdateSchema,
   CategoryCreateSchema,
+  ProductCreateInput,
 } from '@iwms/shared';
 
 @Controller()
@@ -79,7 +80,7 @@ export class CatalogController {
 
   @Post('products/import')
   @Roles('ADMIN', 'MANAGER')
-  async importProducts(@Body() body: { items: any[] }) {
+  async importProducts(@Body() body: { items: ProductCreateInput[] }) {
     return this.catalogService.importProducts(body.items);
   }
 }

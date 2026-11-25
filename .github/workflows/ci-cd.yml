@@ -7,6 +7,16 @@ on:
     branches: [main]
 
 jobs:
+  actionlint:
+    name: Workflow Lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint
+
   test-and-build:
     name: Lint, Build & Test
     runs-on: ubuntu-latest
@@ -42,17 +52,178 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
       - name: Build Monorepo Packages
         run: pnpm build
 
-      - name: Run Concurrency, State Machine & Regression Tests
-        run: pnpm test
+      # After build: apps type-check against the built dist of @iwms/shared and @iwms/db.
+      - name: Lint (tsc + ESLint)
+        run: pnpm lint
+
+      - name: Run Concurrency, State Machine & Regression Tests with Coverage
+        run: |
+          pnpm --filter api test:coverage | tee coverage-summary.txt
+          pnpm --filter web test:coverage | tee web-coverage-summary.txt
+
+      - name: Publish Coverage Summary
+        if: always()
+        run: |
+          echo "### Test Coverage - api" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 25 coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### Test Coverage - web" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 25 web-coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  integration:
+    name: Real-DB Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iwms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared & DB Packages
+        run: pnpm --filter @iwms/shared build && pnpm --filter @iwms/db build
+
+      - name: Run Real-DB Integration Tests
+        run: pnpm --filter api test:int
+        env:
+          DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/iwms_test
+          JWT_SECRET: ci_jwt_secret_testing_40_chars_key_00001
+          JWT_REFRESH_SECRET: ci_jwt_refresh_testing_40_chars_key_0002
+
+  e2e:
+    name: Playwright E2E Tests
+    needs: test-and-build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iwms
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iwms
+      JWT_SECRET: ci-e2e-access-secret-0123456789abcdef0123
+      JWT_REFRESH_SECRET: ci-e2e-refresh-secret-0123456789abcdef01
+      PORT: 4000
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Shared & DB Packages
+        run: pnpm --filter @iwms/shared build && pnpm --filter @iwms/db build
+
+      - name: Run Database Migrations and Seed
+        run: pnpm db:migrate && pnpm db:seed
+
+      - name: Build API
+        run: pnpm --filter api build
+
+      - name: Start API
+        run: node apps/api/dist/main.js > api.log 2>&1 &
+
+      - name: Start Web
+        run: pnpm --filter web exec vite --port 5173 --strictPort > web.log 2>&1 &
+
+      - name: Wait for API and Web
+        run: |
+          for i in $(seq 1 60); do
+            api_code=$(curl -s -o /dev/null -w '%{http_code}' localhost:4000/api/v1/auth/login || true)
+            if [ "$api_code" != "000" ] && curl -sf localhost:5173 > /dev/null 2>&1; then
+              echo "API and Web are ready"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Timed out waiting for API or Web"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Tests
+        run: pnpm --filter web test:e2e
+        env:
+          CI: 'true'
+
+      - name: Upload Test Artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            apps/web/test-results
+            api.log
+            web.log
 
   docker-build:
     name: Build Docker Images
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
 
     steps:
       - name: Checkout Code
