@@ -2,7 +2,7 @@ name: IWMS CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, security/p0]
   pull_request:
     branches: [main]
 
@@ -39,7 +39,7 @@ jobs:
       - name: Get pnpm store directory
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -64,20 +64,23 @@ jobs:
 
       - name: Run Concurrency, State Machine & Regression Tests with Coverage
         run: |
+          set -o pipefail
           pnpm --filter api test:coverage | tee coverage-summary.txt
           pnpm --filter web test:coverage | tee web-coverage-summary.txt
 
       - name: Publish Coverage Summary
         if: always()
         run: |
-          echo "### Test Coverage - api" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 25 coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "### Test Coverage - web" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 25 web-coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Test Coverage - api"
+            echo '```text'
+            tail -n 25 coverage-summary.txt
+            echo '```'
+            echo "### Test Coverage - web"
+            echo '```text'
+            tail -n 25 web-coverage-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   integration:
     name: Real-DB Integration Tests
